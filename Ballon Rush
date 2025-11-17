@@ -1,0 +1,2841 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Balloon Rush</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"/>
+  <style>
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+    html,body{
+      width:100%;height:100%;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      overflow:hidden;
+    }
+    body{
+      display:flex;justify-content:center;align-items:stretch;
+      background:#000;color:#fff;
+      transition:background 0.4s ease,filter 0.4s ease;
+      padding-bottom:max(12px, env(safe-area-inset-bottom));
+    }
+    #game-root{
+      width:100vw;
+      max-width:640px;
+      height:calc(100vh - max(12px, env(safe-area-inset-bottom)));
+      padding:6px;
+      display:flex;flex-direction:column;
+      gap:4px;
+      position:relative;
+    }
+
+    /* VIRŠUTINĖ INFO JUOSTA – suploninta, kad sutilptų į vieną eilutę */
+    #top-bar{
+      display:flex;justify-content:space-between;align-items:center;
+      gap:4px;font-size:.72rem;color:#fff;
+      white-space:nowrap;
+    }
+    #logo{
+      font-weight:800;
+      font-size:.86rem;
+      letter-spacing:.06em;
+      flex-shrink:0;
+    }
+    #stats-row{
+      display:flex;gap:3px;flex-wrap:nowrap;justify-content:flex-end;
+    }
+    .pill{
+      background:rgba(0,0,0,.45);
+      padding:1px 5px;
+      border-radius:999px;
+      display:flex;align-items:center;gap:3px;
+      box-shadow:0 1px 3px rgba(0,0,0,.5);
+      white-space:nowrap;
+      font-size:.7rem;
+      flex-shrink:1;
+    }
+    .pill span.val{font-weight:700;font-size:.72rem;}
+
+    @media (max-width:380px){
+      #stats-row .pill:nth-child(2){display:none;}
+    }
+
+    /* BODY TEMOS (už žaidimo lauko) */
+    body.theme-1{background:linear-gradient(#90caf9,#e3f2fd);}
+    body.theme-2{background:linear-gradient(#bbdefb,#e3f2fd);}
+    body.theme-3{background:linear-gradient(#a5d6a7,#e8f5e9);}
+    body.theme-4{background:linear-gradient(#c5e1a5,#fff8e1);}
+    body.theme-5{background:linear-gradient(#ffcc80,#ffab91);}
+    body.theme-6{background:linear-gradient(#ffe082,#ffccbc);}
+    body.theme-7{background:linear-gradient(#b39ddb,#ede7f6);}
+    body.theme-8{background:linear-gradient(#ce93d8,#f3e5f5);}
+    body.theme-9{background:linear-gradient(#80deea,#e0f7fa);}
+    body.theme-10{background:linear-gradient(#b3e5fc,#f1f8e9);}
+    body.theme-11{background:linear-gradient(#aed581,#e8f5e9);}
+    body.theme-12{background:linear-gradient(#fff59d,#fffde7);}
+    body.theme-13{background:linear-gradient(#ffccbc,#f3e5f5);}
+    body.theme-14{background:linear-gradient(#90caf9,#e1bee7);}
+    body.theme-15{background:linear-gradient(#4fc3f7,#283593);}
+    body.theme-16{background:radial-gradient(circle at top,#1a237e,#000);}
+    body.theme-17{background:radial-gradient(circle at 20% 0%,#3949ab,#1a237e);}
+    body.theme-18{background:radial-gradient(circle at 80% 0%,#6a1b9a,#311b92);}
+    body.theme-19{background:linear-gradient(#263238,#000000);}
+    body.theme-20{background:linear-gradient(#455a64,#1a237e);}
+    body.theme-21{background:linear-gradient(#ff8a65,#6a1b9a);}
+    body.theme-22{background:linear-gradient(#f06292,#311b92);}
+    body.theme-23{background:linear-gradient(#26c6da,#283593);}
+    body.theme-24{background:linear-gradient(#81c784,#004d40);}
+    body.theme-25{background:linear-gradient(#ffe082,#5d4037);}
+    body.theme-26{background:linear-gradient(#ffb74d,#1a237e);}
+    body.theme-27{background:linear-gradient(#ce93d8,#4a148c);}
+    body.theme-28{background:radial-gradient(circle at 30% 0%,#00e5ff,#000a12);}
+    body.theme-29{background:radial-gradient(circle at 70% 0%,#ffea00,#263238);}
+    body.theme-30{background:radial-gradient(circle at 50% 0%,#ff4081,#1a237e);}
+
+    body.theme-vip{
+      background:radial-gradient(circle at 20% 0%,#7e57c2,#1a237e 40%,#000 80%);
+      background-size:200% 200%;
+      animation:galaxyMove 18s ease-in-out infinite;
+    }
+    @keyframes galaxyMove{
+      0%{background-position:0% 0%;}
+      50%{background-position:100% 100%;}
+      100%{background-position:0% 0%;}
+    }
+
+    body.danger{
+      animation:dangerPulse 1s ease-in-out infinite;
+    }
+    @keyframes dangerPulse{
+      0%{filter:none;}
+      50%{filter:brightness(0.85) saturate(1.2);}
+      100%{filter:none;}
+    }
+
+    /* ŽAIDIMO LAUKAS – pasauliai + oras */
+    #game-area{
+      position:relative;flex:1;
+      border-radius:18px;overflow:hidden;
+      background:#020b1c;
+      box-shadow:0 4px 12px rgba(0,0,0,.6);
+      isolation:isolate;
+    }
+
+    #game-area::before,
+    #game-area::after{
+      content:"";
+      position:absolute;inset:0;
+      pointer-events:none;
+      transition:opacity .5s ease;
+      opacity:0;
+    }
+
+    /* MIESTAS */
+    #game-area.world-city{
+      background:linear-gradient(to top,#0d47a1,#bbdefb);
+    }
+    #game-area.world-city::before{
+      opacity:1;
+      background:
+        linear-gradient(to top,rgba(0,0,0,0.95),transparent 40%),
+        /* žemiausia pastatų juosta */
+        linear-gradient(to top,#263238 0 60%,transparent 60%) 4% 100%/12% 55% no-repeat,
+        linear-gradient(to top,#37474f 0 50%,transparent 50%) 17% 100%/10% 48% no-repeat,
+        linear-gradient(to top,#263238 0 65%,transparent 65%) 30% 100%/16% 60% no-repeat,
+        linear-gradient(to top,#37474f 0 45%,transparent 45%) 48% 100%/10% 46% no-repeat,
+        linear-gradient(to top,#263238 0 70%,transparent 70%) 62% 100%/14% 62% no-repeat,
+        linear-gradient(to top,#37474f 0 52%,transparent 52%) 78% 100%/11% 52% no-repeat,
+        linear-gradient(to top,#263238 0 60%,transparent 60%) 90% 100%/10% 55% no-repeat;
+    }
+
+    /* MIŠKAS – aiškios eglės ir žolė */
+    #game-area.world-forest{
+      background:linear-gradient(to top,#1b5e20,#a5d6a7);
+    }
+    #game-area.world-forest::before{
+      opacity:1;
+      background:
+        /* žolė apačioje */
+        linear-gradient(to top,#1b5e20 0 35%,transparent 35%) bottom/100% 55% no-repeat,
+        /* tolimo miško juosta */
+        repeating-linear-gradient(
+          -65deg,
+          #2e7d32 0 10px,
+          #2e7d32 10px,
+          #1b5e20 10px 18px
+        ) 0 60%/120% 30% no-repeat,
+        /* artimesni medžiai – kamienai */
+        linear-gradient(#4e342e 0,#4e342e 70%,transparent 71%) 12% 100%/2% 42% no-repeat,
+        linear-gradient(#4e342e 0,#4e342e 70%,transparent 71%) 32% 100%/2% 38% no-repeat,
+        linear-gradient(#4e342e 0,#4e342e 70%,transparent 71%) 56% 100%/2% 40% no-repeat,
+        linear-gradient(#4e342e 0,#4e342e 70%,transparent 71%) 78% 100%/2% 36% no-repeat,
+        /* eglės viršūnės */
+        linear-gradient(120deg,transparent 50%,#2e7d32 51%) 10% 64%/14% 18% no-repeat,
+        linear-gradient(60deg,transparent 50%,#33691e 51%) 10% 64%/14% 18% no-repeat,
+        linear-gradient(120deg,transparent 50%,#2e7d32 51%) 32% 66%/14% 18% no-repeat,
+        linear-gradient(60deg,transparent 50%,#1b5e20 51%) 32% 66%/14% 18% no-repeat,
+        linear-gradient(120deg,transparent 50%,#2e7d32 51%) 56% 63%/14% 18% no-repeat,
+        linear-gradient(60deg,transparent 50%,#33691e 51%) 56% 63%/14% 18% no-repeat,
+        linear-gradient(120deg,transparent 50%,#2e7d32 51%) 78% 65%/14% 18% no-repeat,
+        linear-gradient(60deg,transparent 50%,#1b5e20 51%) 78% 65%/14% 18% no-repeat;
+    }
+
+    /* KALNAI – pilnai naujas, aiškesnis fonas */
+    #game-area.world-mountain{
+      background:linear-gradient(to top,#0d1b2a 0,#1b263b 45%,#e0f7fa 100%);
+    }
+    #game-area.world-mountain::before{
+      opacity:1;
+      background:
+        /* apačios užtamsinimas */
+        linear-gradient(to top,rgba(0,0,0,0.9) 0,transparent 35%),
+        /* priekinė tamsi kalva */
+        radial-gradient(circle at 50% 135%,#263238 0,#263238 55%,transparent 56%),
+        /* viduriniai kalnai */
+        linear-gradient(135deg,#37474f 60%,transparent 61%) 0% 100%/35% 75% no-repeat,
+        linear-gradient(45deg,#455a64 60%,transparent 61%) 25% 100%/40% 78% no-repeat,
+        linear-gradient(135deg,#546e7a 60%,transparent 61%) 55% 100%/42% 80% no-repeat,
+        linear-gradient(45deg,#607d8b 60%,transparent 61%) 80% 100%/35% 82% no-repeat,
+        /* sniego viršūnės */
+        linear-gradient(135deg,#fafafa 52%,transparent 53%) 12% 54%/20% 18% no-repeat,
+        linear-gradient(45deg,#fafafa 52%,transparent 53%) 37% 50%/22% 18% no-repeat,
+        linear-gradient(135deg,#fafafa 52%,transparent 53%) 62% 48%/24% 20% no-repeat,
+        linear-gradient(45deg,#fafafa 52%,transparent 53%) 85% 46%/18% 18% no-repeat,
+        /* miško juosta apačioje */
+        repeating-linear-gradient(
+          -65deg,
+          #2e7d32 0 10px,
+          #1b5e20 10px 18px
+        ) 0 76%/120% 24% no-repeat;
+    }
+
+    /* KOSMOSAS – pilnai naujas fonas */
+    #game-area.world-space{
+      background:radial-gradient(circle at 50% 0,#283593 0,#0b1020 45%,#000 100%);
+    }
+    #game-area.world-space::before{
+      opacity:1;
+      background:
+        /* ūko lopai */
+        radial-gradient(circle at 20% 25%,rgba(129,212,250,0.5),transparent 55%),
+        radial-gradient(circle at 80% 20%,rgba(244,143,177,0.6),transparent 60%),
+        radial-gradient(circle at 10% 80%,rgba(149,117,205,0.55),transparent 60%),
+        radial-gradient(circle at 70% 75%,rgba(100,181,246,0.5),transparent 60%),
+        /* žvaigždės */
+        radial-gradient(#ffffff 1.4px,transparent 1.4px) 0 0/18px 18px repeat,
+        radial-gradient(#fff9c4 1.2px,transparent 1.2px) 10px 12px/22px 22px repeat,
+        radial-gradient(#b3e5fc 1px,transparent 1px) 6px 18px/26px 26px repeat;
+      mix-blend-mode:screen;
+    }
+
+    /* Oras – virš pasaulio */
+    #game-area.weather-rain::after{
+      opacity:0;
+    }
+
+    #game-area.weather-snow::after{
+      opacity:.9;
+      background-image:
+        radial-gradient(#ffffff 1.2px,transparent 1.2px),
+        radial-gradient(#ffffff 1.4px,transparent 1.4px);
+      background-size:18px 18px,26px 26px;
+      background-position:0 0,8px 12px;
+      animation:snowFall 4s linear infinite;
+      mix-blend-mode:screen;
+    }
+    @keyframes snowFall{
+      0%{transform:translateY(-15px);}
+      100%{transform:translateY(15px);}
+    }
+
+    #game-area.weather-storm::after{
+      opacity:.35;
+      background:radial-gradient(circle at 20% 0%,rgba(255,255,255,0.4),transparent 40%);
+      mix-blend-mode:screen;
+      animation:lightningFlash 4s ease-in-out infinite;
+    }
+    @keyframes lightningFlash{
+      0%,6%,100%{opacity:0;}
+      1%{opacity:.6;}
+      2%{opacity:0;}
+      3%{opacity:.5;}
+      4%{opacity:0;}
+    }
+
+    #game-area.weather-stars::after{
+      opacity:.4;
+      background:
+        radial-gradient(#ffffff 1px,transparent 1px) 10px 10px/4px 4px repeat;
+      animation:starPulse 5s ease-in-out infinite;
+      mix-blend-mode:screen;
+    }
+    @keyframes starPulse{
+      0%,100%{opacity:.2;}
+      50%{opacity:.6;}
+    }
+
+    #game-area.world-transition{
+      animation:worldFlash .6s ease-out;
+    }
+    @keyframes worldFlash{
+      0%{box-shadow:0 0 0 rgba(255,255,255,0);transform:scale(1);}
+      40%{box-shadow:0 0 22px rgba(255,255,255,0.7);transform:scale(1.02);}
+      100%{box-shadow:0 0 12px rgba(0,0,0,0.6);transform:scale(1);}
+    }
+
+    #hud-overlay{
+      position:absolute;top:4px;left:4px;right:4px;
+      display:flex;justify-content:space-between;align-items:center;
+      font-size:.75rem;z-index:5;
+    }
+    #lives{display:flex;gap:2px;}
+    .heart{
+      width:14px;height:14px;background:#ff5252;
+      clip-path:polygon(50% 80%,0 30%,25% 0,50% 20%,75% 0,100% 30%);
+      filter:drop-shadow(0 0 2px rgba(0,0,0,.6));
+    }
+    .heart.empty{background:rgba(255,255,255,.2);}
+
+    #target-color{
+      padding:2px 6px;border-radius:999px;background:rgba(0,0,0,.5);
+      display:flex;align-items:center;gap:4px;
+    }
+    #target-dot{
+      width:12px;height:12px;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,.7);
+    }
+    #level-info{display:flex;gap:4px;align-items:center;}
+    #world-label{font-size:.7rem;opacity:.95;}
+    #streak-label{
+      padding:2px 6px;border-radius:999px;background:rgba(255,255,255,.12);
+    }
+
+    #progress-bar-wrap{
+      position:absolute;bottom:2px;left:8px;right:8px;
+      height:10px;border-radius:999px;background:rgba(0,0,0,.35);
+      overflow:hidden;z-index:5;
+    }
+    #progress-fill{
+      height:100%;width:0%;
+      background:linear-gradient(90deg,#ffeb3b,#ff9800);
+      box-shadow:0 0 6px rgba(255,235,59,.7);
+    }
+
+    /* HELPER – augintinis (šuniukas / kačiukas) apačioje dešinėje */
+    #helper{
+      position:absolute;
+      right:6px;
+      bottom:18px;
+      width:44px;
+      height:44px;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      pointer-events:none;
+      z-index:7;
+    }
+    #helper-body{
+      width:40px;
+      height:40px;
+      border-radius:8px;
+      background-color:transparent;
+      background-size:contain;
+      background-repeat:no-repeat;
+      background-position:center;
+      image-rendering:pixelated;
+      box-shadow:0 0 10px rgba(0,0,0,.9);
+      border:none;
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:transform .2s ease-out;
+    }
+    .helper-face{
+      display:none;
+    }
+    .helper-face.mouth-open{
+      transform:scale(1.15) translateY(-1px);
+    }
+    .helper-teleport-out{
+      animation:helperTeleportOut .18s ease-out forwards;
+    }
+    .helper-teleport-in{
+      animation:helperTeleportIn .18s ease-out forwards;
+    }
+    @keyframes helperTeleportOut{
+      0%{opacity:1;}
+      100%{opacity:0;}
+    }
+    @keyframes helperTeleportIn{
+      0%{opacity:0;}
+      100%{opacity:1;}
+    }
+    .helper-bite{
+      animation:helperBite .18s ease-out;
+    }
+    @keyframes helperBite{
+      0%{transform:scale(1);}
+      50%{transform:scale(1.2);}
+      100%{transform:scale(1);}
+    }
+
+    /* Žaibų sluoksnis */
+    #lightning-layer{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      z-index:8;
+    }
+
+    #lightning-layer svg{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      overflow:visible;
+    }
+    .lightning-path{
+      fill:none;
+      stroke:#fffde7;
+      stroke-width:2.2px;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+      /* be sunkios drop-shadow dėl našumo */
+      animation:lightningPath .22s ease-out forwards;
+    }
+    @keyframes lightningPath{
+      0%{opacity:0;stroke-width:3.5px;}
+      15%{opacity:1;stroke-width:2.2px;}
+      100%{opacity:0;stroke-width:1.8px;}
+    }
+
+    .cosmic-ray-path{
+      fill:none;
+      stroke:#80deff;
+      stroke-width:2.2px;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+      /* taip pat be drop-shadow dėl našumo */
+      animation:cosmicRay .25s ease-out forwards;
+    }
+    @keyframes cosmicRay{
+      0%{opacity:0;stroke-width:3.5px;}
+      20%{opacity:1;stroke-width:2.2px;}
+      100%{opacity:0;stroke-width:1.5px;}
+    }
+    #game-area.cosmic-hit{
+      animation:cosmicHitFlash .24s ease-out;
+    }
+    @keyframes cosmicHitFlash{
+      0%{box-shadow:0 0 0 rgba(129,212,250,0);}
+      50%{box-shadow:0 0 24px rgba(129,212,250,.9);}
+      100%{box-shadow:0 0 12px rgba(0,0,0,.6);}
+    }
+
+    #lightning-layer img{
+      position:absolute;
+      pointer-events:none;
+      image-rendering:pixelated;
+    }
+    .lightning-sprite{
+      width:32px;
+      height:96px;
+      animation:lightningSprite .25s ease-out forwards;
+    }
+    .cosmic-sprite{
+      width:32px;
+      height:96px;
+      animation:cosmicSprite .25s ease-out forwards;
+    }
+    @keyframes lightningSprite{
+      0%{opacity:0;transform:translateY(-10px);}
+      20%{opacity:1;transform:translateY(0);}
+      100%{opacity:0;transform:translateY(20px);}
+    }
+    @keyframes cosmicSprite{
+      0%{opacity:0;transform:translateY(-15px);}
+      30%{opacity:1;transform:translateY(0);}
+      100%{opacity:0;transform:translateY(25px);}
+    }
+
+    #game-area.lightning-hit{
+      animation:lightningHitFlash .18s ease-out;
+    }
+    @keyframes lightningHitFlash{
+      0%{box-shadow:0 0 0 rgba(255,255,255,0);}
+      50%{box-shadow:0 0 22px rgba(255,255,255,.9);}
+      100%{box-shadow:0 0 12px rgba(0,0,0,.6);}
+    }
+
+    /* Audros debesys viršuje, kai yra žaibai (weather-storm) */
+    #storm-clouds{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      z-index:3;
+      opacity:.0;
+      transition:opacity .4s ease, filter .4s ease;
+    }
+    #game-area:not(.world-city) #storm-clouds{
+      display:none;
+    }
+    #game-area.world-city.weather-storm #storm-clouds{
+      opacity:.65;
+      filter:brightness(0.98);
+    }
+    #game-area.world-city.weather-storm.storm-intense #storm-clouds{
+      opacity:.85;
+      filter:brightness(0.93);
+    }
+
+    /* Švelnesni permatomi debesys */
+    .storm-cloud{
+      position:absolute;
+      width:260px;
+      height:120px;
+      border-radius:50%;
+      background:
+        radial-gradient(circle at 50% 40%,rgba(255,255,255,0.85) 0,rgba(236,239,241,0.7) 40%,transparent 70%),
+        radial-gradient(circle at 30% 65%,rgba(207,216,220,0.7) 0,rgba(176,190,197,0.6) 45%,transparent 75%),
+        radial-gradient(circle at 70% 65%,rgba(207,216,220,0.7) 0,rgba(144,164,174,0.6) 45%,transparent 75%);
+      background-blend-mode:screen;
+      filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+      opacity:.8;
+      animation:cloudDrift 32s linear infinite;
+    }
+    .storm-cloud::after{
+      /* apačioje tamsesnė auros juosta, bet lengvesnė */
+      content:"";
+      position:absolute;
+      inset:14px;
+      border-radius:50%;
+      background:radial-gradient(circle at 50% 120%,rgba(69,90,100,0.65) 0,rgba(38,50,56,0) 70%);
+      mix-blend-mode:multiply;
+      opacity:.7;
+    }
+    .storm-cloud.cloud-left{
+      top:10px;
+      left:2%;
+      animation-duration:30s;
+    }
+    .storm-cloud.cloud-right{
+      top:0;
+      right:2%;
+      animation-duration:36s;
+      animation-direction:reverse;
+    }
+    @keyframes cloudDrift{
+      0%{transform:translateX(-30px);}
+      50%{transform:translateX(30px);}
+      100%{transform:translateX(-30px);}
+    }
+
+    /* Paskutinio įvykio juostelė pačiame žaidimo lauke */
+    #last-log-overlay{
+      position:absolute;
+      left:6px;
+      right:6px;
+      bottom:14px;
+      background:rgba(0,0,0,.4);
+      padding:2px 6px;
+      border-radius:8px;
+      font-size:.7rem;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+      overflow:hidden;
+      z-index:6;
+      pointer-events:none;
+    }
+
+    .balloon{
+      position:absolute;width:40px;height:60px;border-radius:50% 50% 45% 45%;
+      cursor:pointer;
+      display:flex;align-items:flex-end;justify-content:center;
+      transition:transform .12s ease-out, box-shadow .12s ease-out, opacity .25s ease-out;
+      overflow:visible;
+    }
+    .balloon::after{
+      content:"";position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);
+      width:2px;height:16px;background:#795548;
+    }
+    .balloon .face{
+      width:18px;height:14px;border-radius:50%;
+      background:rgba(255,255,255,.25);
+      position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+    }
+
+    .cb-label{
+      position:absolute;top:8px;left:50%;transform:translateX(-50%);
+      font-size:.7rem;font-weight:700;
+      background:rgba(0,0,0,.35);
+      padding:1px 4px;border-radius:999px;
+      display:none;
+    }
+    body.colorblind .cb-label{display:block;}
+
+    .color-red{
+      background:#ef5350;
+      box-shadow:0 0 10px rgba(239,83,80,.9),0 0 22px rgba(239,83,80,.5);
+    }
+    .color-blue{
+      background:#42a5f5;
+      box-shadow:0 0 10px rgba(66,165,245,.9),0 0 22px rgba(66,165,245,.5);
+    }
+    .color-yellow{
+      background:#ffeb3b;
+      box-shadow:0 0 10px rgba(255,235,59,.9),0 0 22px rgba(255,235,59,.5);
+    }
+    .color-green{
+      background:#66bb6a;
+      box-shadow:0 0 10px rgba(102,187,106,.9),0 0 22px rgba(102,187,106,.5);
+    }
+    .color-purple{
+      background:#ab47bc;
+      box-shadow:0 0 10px rgba(171,71,188,.9),0 0 22px rgba(171,71,188,.5);
+    }
+
+    .vip-skin{
+      box-shadow:0 0 12px rgba(255,215,64,1),0 0 26px rgba(255,235,59,.9);
+      border:2px solid rgba(255,235,59,.9);
+    }
+
+    .target-main{
+      box-shadow:0 0 14px rgba(255,255,255,.9),0 0 28px rgba(255,255,255,.7);
+    }
+    .balloon.good-target{box-shadow:0 0 14px rgba(255,255,255,.9);}
+    .balloon.bad-special{box-shadow:0 0 14px rgba(244,67,54,1);}
+
+    .balloon.type-heart{background:#ec407a;}
+    .balloon.type-heart::before{
+      content:"❤";position:absolute;top:12px;left:50%;transform:translateX(-50%);
+      font-size:1rem;
+    }
+    .balloon.type-chest{background:#ffb74d;}
+    .balloon.type-chest::before{
+      content:"🎁";position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    }
+    .balloon.type-ice{background:#26c6da;}
+    .balloon.type-ice::before{
+      content:"❄";position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    }
+    .balloon.type-slow{background:#9575cd;}
+    .balloon.type-slow::before{
+      content:"🐌";position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    }
+    .balloon.type-x2{background:#ffca28;}
+    .balloon.type-x2::before{
+      content:"×2";position:absolute;top:12px;left:50%;transform:translateX(-50%);
+      font-size:.7rem;font-weight:700;
+    }
+    .balloon.type-turbo{background:#ff7043;}
+    .balloon.type-turbo::before{
+      content:"⚡";position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    }
+    .balloon.type-bomb{background:#d32f2f;}
+    .balloon.type-bomb::before{
+      content:"💣";position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    }
+    .balloon.type-boss{
+      background:#fbc02d;border:2px solid #fff;
+    }
+    .balloon.type-boss::before{
+      content:"👑";position:absolute;top:8px;left:50%;transform:translateX(-50%);
+      font-size:1.1rem;
+    }
+
+    .balloon.pop-good{animation:popGood .28s forwards;}
+    .balloon.pop-bad{animation:popBad .28s forwards;}
+    .balloon.pop-special{animation:popSpecial .32s forwards;}
+    .balloon.pop-boss{animation:popBoss .45s forwards;}
+
+    @keyframes popGood{
+      0%{transform:scale(1);opacity:1;}
+      40%{transform:scale(1.25);box-shadow:0 0 24px rgba(255,255,255,1);}
+      100%{transform:scale(0.7);opacity:0;}
+    }
+    @keyframes popBad{
+      0%{transform:scale(1);opacity:1;}
+      20%{transform:scale(1.15);box-shadow:0 0 20px rgba(244,67,54,1);}
+      100%{transform:scale(0.6);opacity:0;}
+    }
+    @keyframes popSpecial{
+      0%{transform:scale(1);opacity:1;}
+      35%{transform:scale(1.3);box-shadow:0 0 26px rgba(255,235,59,1);}
+      100%{transform:scale(0.75);opacity:0;}
+    }
+    @keyframes popBoss{
+      0%{transform:scale(1);opacity:1;}
+      25%{transform:scale(1.4);box-shadow:0 0 30px rgba(255,235,59,1);}
+      60%{transform:scale(1.1);box-shadow:0 0 40px rgba(255,255,255,1);}
+      100%{transform:scale(0.8);opacity:0;}
+    }
+
+    .fx{position:absolute;pointer-events:none;left:0;top:0;}
+    .fx-particle{
+      position:absolute;width:4px;height:4px;border-radius:50%;
+      opacity:0;animation:particle 0.45s linear forwards;
+    }
+    .fx-particle.good{background:#ffffff;}
+    .fx-particle.bad{background:#f44336;}
+    .fx-particle.special{background:#ffeb3b;}
+    .fx-particle.boss1{background:#ffd740;}
+    .fx-particle.boss2{background:#ffffff;}
+    @keyframes particle{
+      0%{transform:translate(0,0) scale(0.4);opacity:1;}
+      100%{transform:translate(var(--dx),var(--dy)) scale(1);opacity:0;}
+    }
+    .fx-star{
+      position:absolute;font-size:10px;color:#ffeb3b;
+      animation:starFx .5s ease-out forwards;opacity:0;
+    }
+    @keyframes starFx{
+      0%{transform:translate(-50%,-50%) scale(0.4);opacity:1;}
+      100%{transform:translate(-50%,-90%) scale(1.4);opacity:0;}
+    }
+    .fx-heart{
+      position:absolute;font-size:10px;color:#ff80ab;
+      animation:heartFx .55s ease-out forwards;opacity:0;
+    }
+    @keyframes heartFx{
+      0%{transform:translate(-50%,-20%) scale(0.4);opacity:1;}
+      100%{transform:translate(-50%,-80%) scale(1.5);opacity:0;}
+    }
+
+    /* APAČIOS MENIU – slide-up */
+    #bottom-bar{
+      position:fixed;
+      left:50%;
+      transform:translateX(-50%) translateY(100%);
+      bottom:0;
+      width:100%;
+      max-width:640px;
+      border-radius:16px 16px 0 0;
+      background:rgba(0,0,0,.9);
+      color:#fff;
+      padding:8px 10px;
+      font-size:.75rem;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      box-shadow:0 -3px 10px rgba(0,0,0,.9);
+      z-index:55;
+      opacity:0;
+      pointer-events:none;
+      transition:transform .25s ease-out,opacity .25s ease-out;
+    }
+    #bottom-bar.open{
+      transform:translateX(-50%) translateY(0);
+      opacity:1;
+      pointer-events:auto;
+    }
+    #bottom-bar-header{
+      display:flex;align-items:center;justify-content:space-between;
+      font-size:.8rem;margin-bottom:2px;
+    }
+    #bottom-bar-title{font-weight:600;}
+    #bottom-bar-close{
+      border:none;background:transparent;color:#fff;
+      font-size:1.1rem;cursor:pointer;
+    }
+
+    #controls{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:6px;
+    }
+    #controls button{
+      width:100%;border:none;border-radius:999px;
+      padding:6px 0;font-weight:700;font-size:.8rem;
+      box-shadow:0 2px 5px rgba(0,0,0,.6);
+      cursor:pointer;
+    }
+    #btn-start{background:#ffca28;color:#000;}
+    #btn-restart{display:none;background:#4caf50;color:#fff;}
+    #btn-pause{background:#7e57c2;color:#fff;}
+    #btn-shop{background:#29b6f6;color:#000;}
+    #btn-settings{background:#455a64;color:#fff;}
+    #btn-daily{background:#ff7043;color:#fff;}
+    #btn-top{background:#26c6da;color:#000;}
+
+    /* LOG LENTUTĖ + paskutinis pranešimas (pilnas logas) */
+    #log-box{
+      flex:1;
+      background:rgba(255,255,255,.06);
+      border-radius:10px;
+      padding:4px;
+      max-height:90px;
+      overflow-y:auto;
+      border:1px solid rgba(255,255,255,.15);
+    }
+    .log-line{
+      display:grid;
+      grid-template-columns:auto 1fr;
+      column-gap:4px;
+      margin-bottom:2px;
+      opacity:.9;
+      font-size:.7rem;
+    }
+    .log-line::before{
+      content:"•";
+      opacity:.5;
+    }
+
+    #last-log{
+      margin-top:3px;
+      padding:2px 4px;
+      border-radius:8px;
+      background:rgba(255,255,255,.03);
+      font-size:.68rem;
+      display:flex;
+      gap:4px;
+      align-items:center;
+      opacity:.9;
+    }
+    #last-log-label{
+      font-weight:600;
+      opacity:.8;
+      flex-shrink:0;
+    }
+    #last-log-text{
+      flex:1;
+      min-width:0;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+      overflow:hidden;
+    }
+
+    /* FAB meniu mygtukas */
+    #fab-menu{
+      position:fixed;
+      right:14px;
+      bottom:calc(max(14px, env(safe-area-inset-bottom) + 8px));
+      width:52px;height:52px;
+      border-radius:50%;
+      border:none;
+      background:rgba(0,0,0,.8);
+      color:#fff;
+      font-size:1.6rem;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 12px rgba(0,0,0,.9);
+      cursor:pointer;
+      z-index:60;
+    }
+
+    .overlay{
+      position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.65);z-index:50;
+    }
+    .panel-card{
+      width:92%;max-width:420px;background:#102027;color:#fff;
+      border-radius:16px;padding:8px;box-shadow:0 4px 14px rgba(0,0,0,.8);
+      font-size:.8rem;
+      max-height:90vh;
+      overflow-y:auto;
+    }
+    .panel-card h3{margin:2px 0 4px;font-size:.95rem;}
+
+    .setting-row{display:flex;justify-content:space-between;align-items:center;margin:4px 0;}
+    .toggle{
+      width:32px;height:18px;border-radius:999px;background:#455a64;
+      position:relative;cursor:pointer;flex-shrink:0;
+    }
+    .toggle::after{
+      content:"";position:absolute;width:14px;height:14px;border-radius:50%;
+      background:#fff;top:2px;left:2px;transition:transform .15s;
+    }
+    .toggle.on{background:#66bb6a;}
+    .toggle.on::after{transform:translateX(14px);}
+    .btn-full{
+      margin-top:6px;width:100%;border:none;border-radius:999px;padding:4px 0;
+      background:#263238;color:#fff;cursor:pointer;
+    }
+
+    /* Parduotuvės tab'ai ir item'ai */
+    #shop-tabs{
+      display:flex;
+      gap:4px;
+      margin:4px 0 6px;
+      flex-wrap:wrap;
+    }
+    .shop-tab{
+      flex:1 1 22%;
+      border:none;
+      border-radius:999px;
+      padding:4px 0;
+      font-size:.75rem;
+      background:#263238;
+      color:#fff;
+      cursor:pointer;
+    }
+    .shop-tab.active{
+      background:#ffca28;
+      color:#000;
+      font-weight:700;
+    }
+    .shop-item{
+      display:flex;
+      justify-content:space-between;
+      gap:6px;
+      padding:6px 5px;
+      border-radius:10px;
+      background:rgba(255,255,255,.04);
+      margin-bottom:4px;
+    }
+    .shop-item-main{
+      flex:1;
+    }
+    .shop-item-title{
+      font-weight:600;
+      margin-bottom:2px;
+      font-size:.8rem;
+    }
+    .shop-item-desc{
+      font-size:.72rem;
+      opacity:.9;
+    }
+    .shop-item-price{
+      font-size:.8rem;
+      font-weight:600;
+      margin-bottom:4px;
+      text-align:right;
+    }
+    .btn-small{
+      border:none;
+      border-radius:999px;
+      padding:4px 8px;
+      font-size:.72rem;
+      cursor:pointer;
+      background:#ffca28;
+      color:#000;
+      font-weight:600;
+      box-shadow:0 2px 4px rgba(0,0,0,.6);
+    }
+
+    .mission{
+      padding:5px 4px;
+      border-radius:10px;
+      background:rgba(255,255,255,.04);
+      margin-bottom:4px;
+      display:flex;
+      justify-content:space-between;
+      gap:4px;
+    }
+    .mission-title{
+      font-size:.78rem;
+      font-weight:500;
+    }
+    .mission-progress{
+      font-size:.74rem;
+      opacity:.9;
+      white-space:nowrap;
+    }
+
+    #game-over{
+      position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.65);z-index:20;color:#fff;
+    }
+    #game-over-card{
+      width:80%;max-width:320px;background:#1c2331;border-radius:16px;padding:8px;
+      text-align:center;
+    }
+    #game-over-card h2{margin:4px 0 6px;font-size:1rem;}
+    #game-over-card p{margin:2px 0;font-size:.8rem;}
+    #btn-go-restart{
+      margin-top:6px;border:none;border-radius:999px;padding:6px 16px;
+      background:#ffca28;color:#000;font-weight:700;cursor:pointer;
+    }
+
+    #pause-overlay{
+      position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.6);z-index:25;color:#fff;
+    }
+    #pause-card{
+      width:70%;max-width:260px;background:#263238;border-radius:14px;padding:8px;
+      text-align:center;
+    }
+    #pause-card h3{margin:4px 0 4px;font-size:.95rem;}
+    #pause-card p{margin:3px 0;font-size:.8rem;}
+
+    #chest-overlay{
+      position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.7);z-index:30;color:#fff;
+    }
+    #chest-card{
+      width:70%;max-width:280px;background:#1a237e;border-radius:18px;
+      padding:10px;text-align:center;
+      box-shadow:0 0 30px rgba(255,235,59,.8);
+      animation:chestPop 0.4s ease-out;
+      position:relative;
+      overflow:hidden;
+    }
+    @keyframes chestPop{
+      0%{transform:scale(0.5);opacity:0;}
+      60%{transform:scale(1.1);opacity:1;}
+      100%{transform:scale(1);opacity:1;}
+    }
+    #chest-rays{
+      position:absolute;left:50%;top:20%;
+      transform:translate(-50%,-50%);
+      width:160px;height:160px;border-radius:50%;
+      background:radial-gradient(circle,#fffde7 0%,rgba(255,255,255,0) 60%);
+      mix-blend-mode:screen;
+      animation:chestRays 1.3s ease-out infinite;
+      opacity:.7;
+      pointer-events:none;
+    }
+    @keyframes chestRays{
+      0%{transform:translate(-50%,-50%) scale(0.8);opacity:.4;}
+      50%{transform:translate(-50%,-50%) scale(1.1);opacity:1;}
+      100%{transform:translate(-50%,-50%) scale(0.9);opacity:.5;}
+    }
+    #chest-box{
+      width:90px;height:70px;margin:16px auto 6px;
+      border-radius:8px;
+      background:linear-gradient(#ffca28,#ffb300);
+      position:relative;
+      box-shadow:0 0 26px rgba(255,235,59,1);
+      overflow:hidden;
+    }
+    #chest-box::before{
+      content:"";position:absolute;inset:4px;
+      border-radius:6px;
+      background:linear-gradient(#ffb300,#f57c00);
+    }
+    #chest-box::after{
+      content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
+      width:36px;height:8px;border-radius:0 0 18px 18px;
+      background:rgba(255,255,255,.85);
+      box-shadow:0 0 10px rgba(255,255,255,.9);
+    }
+    #chest-box.opening{
+      animation:chestOpen 0.6s ease-out forwards;
+    }
+    @keyframes chestOpen{
+      0%{
+        transform:translateY(0) scale(0.9);
+        box-shadow:0 0 20px rgba(255,235,59,0.3);
+      }
+      40%{
+        transform:translateY(-6px) scale(1.05);
+        box-shadow:0 0 35px rgba(255,235,59,0.9);
+      }
+      100%{
+        transform:translateY(-3px) scale(1);
+        box-shadow:0 0 26px rgba(255,235,59,0.7);
+      }
+    }
+    #chest-smoke{
+      position:absolute;left:50%;bottom:32px;transform:translateX(-50%);
+      width:120px;height:80px;pointer-events:none;
+    }
+    .smoke-dot{
+      position:absolute;width:10px;height:10px;border-radius:50%;
+      background:rgba(255,255,255,0.6);
+      filter:blur(1px);
+      animation:smokeRise 0.8s ease-out forwards;
+    }
+    @keyframes smokeRise{
+      0%{transform:translate(0,0) scale(0.4);opacity:1;}
+      100%{transform:translate(var(--sx),var(--sy)) scale(1.5);opacity:0;}
+    }
+
+    #chest-reward{
+      margin:4px 0;font-size:.85rem;font-weight:700;position:relative;z-index:2;
+      text-shadow:0 0 6px rgba(0,0,0,0.8);
+    }
+    #chest-hint{
+      font-size:.7rem;opacity:.9;margin-bottom:4px;position:relative;z-index:2;
+    }
+    #btn-chest-ok{
+      margin-top:4px;border:none;border-radius:999px;padding:6px 16px;
+      background:#ffea00;color:#000;font-weight:700;cursor:pointer;
+      position:relative;z-index:2;
+    }
+
+    @media (max-height:600px){
+      #controls button{padding:5px 0;font-size:.75rem;}
+      .balloon{width:32px;height:50px;}
+    }
+
+    @media (max-width:360px){
+      #controls{gap:4px;}
+      #bottom-bar{font-size:.68rem;padding:6px 8px;}
+      .pill{padding:1px 5px;}
+    }
+  </style>
+</head>
+<body class="theme-1">
+  <div id="game-root">
+    <div id="top-bar">
+      <div id="logo">BALLOON RUSH</div>
+      <div id="stats-row">
+        <div class="pill">⭐ <span class="val" id="stat-stars">0</span></div>
+        <div class="pill">🔱 <span class="val" id="stat-stars-lt">0</span></div>
+        <div class="pill">XP <span class="val" id="stat-xp">0</span></div>
+        <div class="pill">LVL <span class="val" id="stat-level">1</span></div>
+        <div class="pill" id="vip-pill" style="display:none;">VIP</div>
+      </div>
+    </div>
+
+    <div id="game-area">
+      <div id="hud-overlay">
+        <div id="lives"></div>
+        <div id="level-info">
+          <div id="target-color">
+            🎯 <span id="target-label">Spalva:</span>
+            <div id="target-dot"></div>
+          </div>
+          <div id="world-label"></div>
+          <div id="streak-label">Streak: <span id="streak-val">0</span></div>
+        </div>
+      </div>
+
+      <!-- Žaibų / kosminių spindulių sluoksnis -->
+      <div id="lightning-layer"></div>
+
+      <!-- Audros debesys -->
+      <div id="storm-clouds">
+        <div class="storm-cloud cloud-left"></div>
+        <div class="storm-cloud cloud-right"></div>
+      </div>
+
+      <!-- Paskutinio įvykio juostelė pačiame žaidimo lauke -->
+      <div id="last-log-overlay">
+        <span id="last-log-overlay-text">Pasiruošk žaidimui.</span>
+      </div>
+
+      <div id="progress-bar-wrap">
+        <div id="progress-fill"></div>
+      </div>
+
+      <!-- AUGINTINIS – dabar atskirai -->
+      <div id="helper">
+        <div id="helper-body">
+          <span class="helper-face">🐶</span>
+        </div>
+      </div>
+
+      <div id="game-over">
+        <div id="game-over-card">
+          <h2>Žaidimas baigtas</h2>
+          <p>Rezultatas: <span id="go-score">0</span></p>
+          <p>Pasiektas lygis: <span id="go-level">1</span></p>
+          <p>Surinktos žvaigždutės: <span id="go-stars">0</span></p>
+          <p id="go-hint"></p>
+          <button id="btn-go-restart">Žaisti iš naujo</button>
+        </div>
+      </div>
+
+      <div id="pause-overlay">
+        <div id="pause-card">
+          <h3>Pauzė</h3>
+          <p>Žaidimas sustabdytas. Spaust „Tęsti“ tęsti žaidimą.</p>
+          <button id="btn-resume" class="btn-full">Tęsti</button>
+        </div>
+      </div>
+
+      <div id="chest-overlay">
+        <div id="chest-card">
+          <div id="chest-rays"></div>
+          <div id="chest-box"></div>
+          <div id="chest-smoke"></div>
+          <div id="chest-reward">Prizas!</div>
+          <div id="chest-hint">Skrynia užsidarys iki 2 s automatiškai.</div>
+          <button id="btn-chest-ok">Tęsti</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide-up meniu apačioje -->
+    <div id="bottom-bar">
+      <div id="bottom-bar-header">
+        <div id="bottom-bar-title">Meniu</div>
+        <button id="bottom-bar-close">✕</button>
+      </div>
+      <div id="controls">
+        <button id="btn-start">Start</button>
+        <button id="btn-restart">Restart</button>
+        <button id="btn-pause">Pauzė</button>
+        <button id="btn-daily">Daily Spin</button>
+        <button id="btn-top">Topai</button>
+        <button id="btn-shop">Parduotuvė</button>
+        <button id="btn-settings">Nustatymai</button>
+      </div>
+      <div id="log-box"></div>
+      <div id="last-log">
+        <span id="last-log-label">Paskutinis:</span>
+        <span id="last-log-text">-</span>
+      </div>
+    </div>
+  </div>
+
+  <button id="fab-menu">☰</button>
+
+  <div id="settings-panel" class="overlay">
+    <div class="panel-card" id="settings-card">
+      <h3>Nustatymai</h3>
+      <div class="setting-row">
+        <span>Vaikų režimas</span>
+        <div id="tgl-kids" class="toggle"></div>
+      </div>
+      <div class="setting-row">
+        <span>Colorblind režimas</span>
+        <div id="tgl-cb" class="toggle"></div>
+      </div>
+      <div class="setting-row">
+        <span>Garsai (logikai)</span>
+        <div id="tgl-sound" class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <span>Vibracija</span>
+        <div id="tgl-vibrate" class="toggle on"></div>
+      </div>
+
+      <!-- LAIKINAS LYGIO PASIRINKIMAS TESTAVIMUI -->
+      <div class="setting-row">
+        <span>Test lygis</span>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input id="input-test-level" type="number" min="1" max="99" value="1" style="width:52px;padding:2px;font-size:.75rem;">
+          <button id="btn-apply-test-level" class="btn-small">Eiti</button>
+        </div>
+      </div>
+
+      <button id="btn-close-settings" class="btn-full">Uždaryti</button>
+    </div>
+  </div>
+
+  <div id="shop-panel" class="overlay">
+    <div class="panel-card">
+      <h3>Parduotuvė</h3>
+      <div style="font-size:.75rem;margin-bottom:3px;">
+        ⭐: <span id="shop-stars">0</span> &nbsp; 🔱: <span id="shop-stars-lt">0</span> &nbsp; VIP: <span id="shop-vip-status">neaktyvus</span>
+      </div>
+      <div id="shop-tabs">
+        <button class="shop-tab active" data-tab="vip">VIP</button>
+        <button class="shop-tab" data-tab="stars">Žvaigždutės</button>
+        <button class="shop-tab" data-tab="upgrades">Patobulinimai</button>
+        <button class="shop-tab" data-tab="skins">Skinai</button>
+      </div>
+      <div id="shop-content"></div>
+      <button id="btn-close-shop" class="btn-full">Uždaryti parduotuvę</button>
+    </div>
+  </div>
+
+  <div id="missions-panel" class="overlay">
+    <div class="panel-card">
+      <h3>Kasdienės misijos</h3>
+      <div id="missions-list"></div>
+      <button id="btn-close-missions" class="btn-full">Uždaryti</button>
+    </div>
+  </div>
+
+  <script>
+    const COLORS=["red","blue","yellow","green","purple"];
+    const COLOR_HEX={red:"#ef5350",blue:"#42a5f5",yellow:"#ffeb3b",green:"#66bb6a",purple:"#ab47bc"};
+    const COLOR_SYMBOL={red:"▲",blue:"●",yellow:"■",green:"◆",purple:"★"};
+
+    const body=document.body;
+    const gameArea=document.getElementById("game-area");
+    const lightningLayer=document.getElementById("lightning-layer");
+    const livesEl=document.getElementById("lives");
+    const targetDot=document.getElementById("target-dot");
+    const statStars=document.getElementById("stat-stars");
+    const statStarsLt=document.getElementById("stat-stars-lt");
+    const statXp=document.getElementById("stat-xp");
+    const statLevel=document.getElementById("stat-level");
+    const vipPill=document.getElementById("vip-pill");
+    const logBox=document.getElementById("log-box");
+    const lastLogText=document.getElementById("last-log-text");
+    const lastLogOverlayText=document.getElementById("last-log-overlay-text");
+    const progressFill=document.getElementById("progress-fill");
+    const progressBarWrap=document.getElementById("progress-bar-wrap");
+    const streakVal=document.getElementById("streak-val");
+    const worldLabel=document.getElementById("world-label");
+    const helperEl=document.getElementById("helper");
+    const helperBody=document.getElementById("helper-body");
+    const helperFace=document.querySelector(".helper-face");
+
+    const btnStart=document.getElementById("btn-start");
+    const btnRestart=document.getElementById("btn-restart");
+    const btnPause=document.getElementById("btn-pause");
+    const btnShop=document.getElementById("btn-shop");
+    const btnSettings=document.getElementById("btn-settings");
+    const btnDaily=document.getElementById("btn-daily");
+    const btnTop=document.getElementById("btn-top");
+    const fabMenu=document.getElementById("fab-menu");
+    const bottomBar=document.getElementById("bottom-bar");
+    const bottomBarClose=document.getElementById("bottom-bar-close");
+
+    const settingsPanel=document.getElementById("settings-panel");
+    const tglKids=document.getElementById("tgl-kids");
+    const tglSound=document.getElementById("tgl-sound");
+    const tglVibrate=document.getElementById("tgl-vibrate");
+    const tglCb=document.getElementById("tgl-cb");
+    const btnCloseSettings=document.getElementById("btn-close-settings");
+    const inputTestLevel=document.getElementById("input-test-level");
+    const btnApplyTestLevel=document.getElementById("btn-apply-test-level");
+
+    const shopPanel=document.getElementById("shop-panel");
+    const shopStars=document.getElementById("shop-stars");
+    const shopStarsLt=document.getElementById("shop-stars-lt");
+    const shopVipStatus=document.getElementById("shop-vip-status");
+    const shopTabs=document.querySelectorAll(".shop-tab");
+    const shopContent=document.getElementById("shop-content");
+    const btnCloseShop=document.getElementById("btn-close-shop");
+
+    const missionsPanel=document.getElementById("missions-panel");
+    const missionsList=document.getElementById("missions-list");
+    const btnCloseMissions=document.getElementById("btn-close-missions");
+
+    const gameOverOverlay=document.getElementById("game-over");
+    const goScore=document.getElementById("go-score");
+    const goLevel=document.getElementById("go-level");
+    const goStars=document.getElementById("go-stars");
+    const goHint=document.getElementById("go-hint");
+    const btnGoRestart=document.getElementById("btn-go-restart");
+
+    const pauseOverlay=document.getElementById("pause-overlay");
+    const btnResume=document.getElementById("btn-resume");
+
+    const chestOverlay=document.getElementById("chest-overlay");
+    const chestReward=document.getElementById("chest-reward");
+    const chestHint=document.getElementById("chest-hint");
+    const btnChestOk=document.getElementById("btn-chest-ok");
+    const chestBox=document.getElementById("chest-box");
+    const chestSmoke=document.getElementById("chest-smoke");
+
+    let state={
+      running:false,
+      paused:false,
+      pauseStart:0,
+      pauseCooldownUntil:0,
+      pausesUsedThisLevel:0,
+      pauseTimerId:null,
+
+      kidsMode:false,
+      colorblindMode:false,
+      sound:true,
+      vibrate:true,
+      lang:"lt",
+
+      score:0,
+      xp:0,
+      starsWallet:0,
+      starsLifetime:0,
+      level:1,
+      targetColor:"blue",
+      lives:3,
+      maxLives:3,
+      streak:0,
+      streak10Given:false,
+      streak20Given:false,
+      levelProgress:0,
+      levelTarget:15,
+      balloons:[],
+      lastSpawnTime:0,
+      lastFrameTime:0,
+      spawnInterval:1100,
+      maxBalloons:7,
+      specialActive:0,
+      x2Active:false,
+      x2Until:0,
+      slowUntil:0,
+      iceUntil:0,
+      turboUntil:0,
+      vipTier:0,
+      vipUntil:0,
+      missions:[],
+
+      bombsClicked:0,
+      targetMissed:0,
+
+      chestActive:false,
+      chestTimeoutId:null,
+
+      world:"city",
+      weather:"clear",
+      lightningLast:0,
+
+      bossesThisLevel:0,
+
+      helperOwned:false,
+      helperPet:null,
+      helperLastAssist:0,
+      helperBusy:false
+    };
+
+    function isVipActive(){return Date.now()<state.vipUntil;}
+    function vipMultiplierXP(){return isVipActive()?1.2:1;}
+
+    function log(msg){
+      const line=document.createElement("div");
+      line.className="log-line";
+      line.textContent=msg;
+      logBox.appendChild(line);
+      while(logBox.childElementCount>8){
+        logBox.removeChild(logBox.firstChild);
+      }
+      lastLogText.textContent=msg;
+      if(lastLogOverlayText) lastLogOverlayText.textContent=msg;
+      logBox.scrollTop=logBox.scrollHeight;
+    }
+
+    function savePersistent(){
+      const obj={
+        xp:state.xp,
+        starsWallet:state.starsWallet,
+        starsLifetime:state.starsLifetime,
+        vipTier:state.vipTier,
+        vipUntil:state.vipUntil,
+        kidsMode:state.kidsMode,
+        lang:state.lang,
+        colorblindMode:state.colorblindMode,
+        helperOwned:state.helperOwned,
+        helperPet:state.helperPet
+      };
+      try{localStorage.setItem("balloon_rush_player",JSON.stringify(obj));}catch(e){}
+    }
+    function loadPersistent(){
+      try{
+        const raw=localStorage.getItem("balloon_rush_player");
+        if(raw){
+          const obj=JSON.parse(raw);
+          state.xp=obj.xp||0;
+          state.starsWallet=obj.starsWallet||0;
+          state.starsLifetime=obj.starsLifetime||0;
+          state.vipTier=obj.vipTier||0;
+          state.vipUntil=obj.vipUntil||0;
+          state.kidsMode=!!obj.kidsMode;
+          state.lang=obj.lang||"lt";
+          state.colorblindMode=!!obj.colorblindMode;
+          state.helperOwned=!!obj.helperOwned;
+          state.helperPet=obj.helperPet || null;
+          if(state.colorblindMode)body.classList.add("colorblind");
+        }
+      }catch(e){}
+    }
+
+    function addStars(amount){
+      if(amount<=0)return;
+      state.starsWallet+=amount;
+      state.starsLifetime+=amount;
+      savePersistent();
+      updateHUD();
+    }
+
+    function worldSlugForLevel(lvl){
+      if(lvl<=8)return "city";
+      if(lvl<=16)return "forest";
+      if(lvl<=24)return "mountain";
+      return "space";
+    }
+
+    function chooseWeatherForLevel(lvl,world){
+      const r=Math.random();
+      if(world==="city"){
+        if(lvl>=4 && r<0.45)return "storm";
+        return "clear";
+      }
+      if(world==="forest"){
+        if(r<0.30)return "rain";
+        return "clear";
+      }
+      if(world==="mountain"){
+        if(r<0.35)return "snow";
+        return "clear";
+      }
+      if(world==="space"){
+        if(r<0.75)return "stars";
+        return "clear";
+      }
+      return "clear";
+    }
+
+    function worldNameForLevel(lvl){
+      const w=worldSlugForLevel(lvl);
+      if(w==="city")return "🏙 Miestas";
+      if(w==="forest")return "🌲 Miškas";
+      if(w==="mountain")return "🏔 Kalnai";
+      return "✨ Kosmosas";
+    }
+
+    function rollWorldAndWeatherForLevel(){
+      const w=worldSlugForLevel(state.level);
+      const wt=chooseWeatherForLevel(state.level,w);
+      state.world=w;
+      state.weather=wt;
+    }
+
+    function applyWorldTheme(){
+      const w=state.world || worldSlugForLevel(state.level);
+      const wt=state.weather || "clear";
+
+      gameArea.classList.remove(
+        "world-city","world-forest","world-mountain","world-space",
+        "weather-clear","weather-rain","weather-snow","weather-storm","weather-stars","storm-intense","lightning-hit","cosmic-hit"
+      );
+      gameArea.classList.add("world-"+w);
+      if(wt==="clear")gameArea.classList.add("weather-clear");
+      else gameArea.classList.add("weather-"+wt);
+    }
+
+    function setThemeByLevel(){
+      if(isVipActive()){
+        body.className="theme-vip";
+        if(state.lives===1)body.classList.add("danger");
+        if(state.colorblindMode)body.classList.add("colorblind");
+        return;
+      }
+      const idx=((state.level-1)%30)+1;
+      body.className="theme-"+idx;
+      if(state.lives===1)body.classList.add("danger");else body.classList.remove("danger");
+      if(state.colorblindMode)body.classList.add("colorblind");
+    }
+
+    function updateHelperVisibility(){
+      if(!helperEl)return;
+      if(state.helperOwned){
+        helperEl.style.display="flex";
+        if(state.helperPet==="cat"){
+          helperBody.style.backgroundImage="url('cat.png')";
+        }else{
+          helperBody.style.backgroundImage="url('dog.png')";
+        }
+      }else{
+        helperEl.style.display="none";
+        helperBody.style.backgroundImage="none";
+      }
+    }
+
+    function updateHUD(){
+      statStars.textContent=state.starsWallet;
+      statStarsLt.textContent=state.starsLifetime;
+      statXp.textContent=state.xp;
+      statLevel.textContent=state.level;
+      const vipAct=isVipActive();
+      vipPill.style.display=vipAct?"flex":"none";
+
+      let baseLives=state.kidsMode?5:3;
+      if(vipAct)baseLives+=1;
+      state.maxLives=baseLives;
+      if(state.lives>state.maxLives)state.lives=state.maxLives;
+      livesEl.innerHTML="";
+      for(let i=0;i<state.maxLives;i++){
+        const h=document.createElement("div");
+        h.className="heart";
+        if(i>=state.lives)h.classList.add("empty");
+        livesEl.appendChild(h);
+      }
+      if(state.lives===1)body.classList.add("danger");else body.classList.remove("danger");
+
+      targetDot.style.background=COLOR_HEX[state.targetColor];
+      streakVal.textContent=state.streak;
+      progressFill.style.width=(state.levelProgress/state.levelTarget*100)+"%";
+      worldLabel.textContent=worldNameForLevel(state.level);
+      setThemeByLevel();
+      applyWorldTheme();
+      updateHelperVisibility();
+    }
+
+    function calcLevelTarget(lvl){return 15+Math.floor((lvl-1)*3);}
+
+    function recalcDifficulty(){
+      const lvl=state.level;
+      let baseInterval=1100 - (lvl-1)*35;
+      if(baseInterval<350)baseInterval=350;
+      state.spawnInterval=baseInterval;
+
+      let baseMax=9 + (lvl-1)*4;
+      if(baseMax>45)baseMax=45;
+      state.maxBalloons=baseMax;
+
+      if(state.kidsMode){
+        state.spawnInterval+=250;
+        state.maxBalloons=Math.max(5,state.maxBalloons-4);
+      }
+    }
+
+    function clearBalloonsInstant(){
+      state.balloons.forEach(b=>{if(b.el&&b.el.parentNode)b.el.parentNode.removeChild(b.el);});
+      state.balloons=[];
+      state.specialActive=0;
+    }
+
+    function resetPauseForLevel(){
+      state.pausesUsedThisLevel=0;
+      state.pauseCooldownUntil=0;
+      state.paused=false;
+      if(state.pauseTimerId){
+        clearInterval(state.pauseTimerId);
+        state.pauseTimerId=null;
+      }
+      btnPause.textContent="Pauzė";
+      btnPause.disabled=false;
+    }
+
+    function resetGame(){
+      clearBalloonsInstant();
+      state.score=0;
+      state.streak=0;
+      state.streak10Given=false;
+      state.streak20Given=false;
+      state.levelProgress=0;
+      state.levelTarget=calcLevelTarget(state.level);
+      state.bombsClicked=0;
+      state.targetMissed=0;
+      state.chestActive=false;
+      state.turboUntil=0;
+      state.slowUntil=0;
+      state.iceUntil=0;
+      state.x2Active=false;
+      state.x2Until=0;
+      state.bossesThisLevel=0;
+      state.helperLastAssist=0;
+      state.helperBusy=false;
+      resetPauseForLevel();
+
+      let baseLives=state.kidsMode?5:3;
+      if(isVipActive())baseLives+=1;
+      state.maxLives=baseLives;
+      state.lives=baseLives;
+      state.targetColor=COLORS[Math.floor(Math.random()*COLORS.length)];
+
+      rollWorldAndWeatherForLevel();
+      setThemeByLevel();
+      applyWorldTheme();
+      recalcDifficulty();
+
+      const now=performance.now();
+      state.lastSpawnTime=now;
+      state.lastFrameTime=now;
+      state.lightningLast=now;
+      updateHUD();
+      log("Naujas žaidimas. Taikinio spalva: "+state.targetColor.toUpperCase()+" | "+worldNameForLevel(state.level));
+    }
+
+    function clearBalloonsOnLevelUp(){
+      state.balloons.forEach(b=>{
+        if(b.el){
+          b.el.classList.add("pop-special");
+          setTimeout(()=>{if(b.el&&b.el.parentNode)b.el.parentNode.removeChild(b.el);},260);
+        }
+      });
+      state.balloons=[];
+      state.specialActive=0;
+      const now=performance.now();
+      state.lastSpawnTime=now;
+      state.lastFrameTime=now;
+      state.lightningLast=now;
+    }
+
+    function nextLevel(){
+      const prevWorld=worldSlugForLevel(state.level);
+
+      state.level++;
+      state.levelProgress=0;
+      state.levelTarget=calcLevelTarget(state.level);
+      state.bombsClicked=0;
+      state.targetMissed=0;
+      state.chestActive=false;
+      state.bossesThisLevel=0;
+      state.helperLastAssist=0;
+      state.helperBusy=false;
+      resetPauseForLevel();
+
+      rollWorldAndWeatherForLevel();
+
+      const newWorld=worldSlugForLevel(state.level);
+      if(newWorld!==prevWorld){
+        gameArea.classList.add("world-transition");
+        setTimeout(()=>gameArea.classList.remove("world-transition"),650);
+        log("🌍 Naujas pasaulis: "+worldNameForLevel(state.level));
+      }
+
+      if(state.level%5===0){
+        addStars(2);
+        log("🎉 Lygis "+state.level+"! +2 ⭐");
+      }else if(state.level%3===0){
+        addStars(1);
+        log("🎉 Lygis "+state.level+"! +1 ⭐");
+      }else{
+        log("🎉 Lygis "+state.level+"!");
+      }
+      const prev=state.targetColor;
+      let nc=prev;
+      while(nc===prev)nc=COLORS[Math.floor(Math.random()*COLORS.length)];
+      state.targetColor=nc;
+      setThemeByLevel();
+      applyWorldTheme();
+      recalcDifficulty();
+      clearBalloonsOnLevelUp();
+      savePersistent();
+      updateHUD();
+    }
+
+    function awardStreakStars(){
+      if(state.streak>=20 && !state.streak20Given){
+        state.streak20Given=true;
+        addStars(2);
+        log("🔥 Serija! 20 pataikymų iš eilės. +2 ⭐");
+      }else if(state.streak>=10 && !state.streak10Given){
+        state.streak10Given=true;
+        addStars(1);
+        log("🔥 Serija! 10 pataikymų iš eilės. +1 ⭐");
+      }
+    }
+
+    function resetStreak(){
+      state.streak=0;
+      state.streak10Given=false;
+      state.streak20Given=false;
+      streakVal.textContent="0";
+    }
+
+    function vibrate(ms){
+      if(!state.vibrate)return;
+      if(navigator.vibrate)navigator.vibrate(ms);
+    }
+
+    function lowHpWarning(){
+      if(state.lives===1){
+        log("⚠ Likusi 1 širdelė – atsargiai!");
+        body.classList.add("danger");
+      }else{
+        body.classList.remove("danger");
+      }
+    }
+
+    function loseLife(reason){
+      if(state.lives<=0)return;
+      state.lives--;
+      if(reason)log("Praradai širdelę: "+reason);
+      vibrate(80);
+      updateHUD();
+      lowHpWarning();
+      if(state.lives<=0){
+        endGame();
+      }
+    }
+
+    function computeGameOverHint(){
+      if(state.bombsClicked>=3){
+        return "Patariu bombų neliesti – jos visada atima širdis.";
+      }
+      if(state.targetMissed>=3){
+        return "Stenkis nepraleisti taikinio spalvos balionų – jie svarbiausi.";
+      }
+      if(state.level<=3){
+        return "Pirmuose lygiuose žaisk ramiai, priprask prie spalvos ir ritmo.";
+      }
+      return "Puikus bandymas! Gal pabandyk daugiau fokusuotis tik į taikinio spalvą.";
+    }
+
+    function endGame(){
+      state.running=false;
+      state.paused=false;
+      state.chestActive=false;
+      state.helperBusy=false;
+      gameOverOverlay.style.display="flex";
+      goScore.textContent=state.score;
+      goLevel.textContent=state.level;
+      goStars.textContent=state.starsWallet;
+      goHint.textContent=computeGameOverHint();
+      btnStart.style.display="none";
+      btnRestart.style.display="block";
+      savePersistent();
+    }
+
+    function spawnFx(b,kind){
+      if(!b.el)return;
+      const rect=b.el.getBoundingClientRect();
+      const gaRect=gameArea.getBoundingClientRect();
+      const cx=rect.left-gaRect.left+rect.width/2;
+      const cy=rect.top-gaRect.top+rect.height/2;
+
+      const fx=document.createElement("div");
+      fx.className="fx";
+      fx.style.left=cx+"px";
+      fx.style.top=cy+"px";
+
+      const particlesCount = kind==="boss" ? 12 : (kind==="special" ? 9 : 7);
+
+      for(let i=0;i<particlesCount;i++){
+        const p=document.createElement("div");
+        p.classList.add("fx-particle");
+        if(kind==="good")p.classList.add("good");
+        else if(kind==="bad")p.classList.add("bad");
+        else if(kind==="special")p.classList.add("special");
+        else if(kind==="boss")p.classList.add(i%2===0?"boss1":"boss2");
+        const angle=Math.random()*Math.PI*2;
+        const dist=(kind==="boss"?60:40)+Math.random()*15;
+        p.style.setProperty("--dx",Math.cos(angle)*dist+"px");
+        p.style.setProperty("--dy",Math.sin(angle)*dist+"px");
+        fx.appendChild(p);
+      }
+      if(kind==="good"){
+        const star=document.createElement("div");
+        star.className="fx-star";
+        star.textContent="★";
+        fx.appendChild(star);
+      }else if(kind==="special"){
+        const h=document.createElement("div");
+        h.className="fx-heart";
+        h.textContent="❤";
+        fx.appendChild(h);
+      }else if(kind==="boss"){
+        const bigStar=document.createElement("div");
+        bigStar.className="fx-star";
+        bigStar.style.fontSize="14px";
+        bigStar.textContent="★";
+        fx.appendChild(bigStar);
+      }
+      gameArea.appendChild(fx);
+      setTimeout(()=>{if(fx&&fx.parentNode)fx.parentNode.removeChild(fx);},600);
+    }
+
+    function closeChest(){
+      chestOverlay.style.display="none";
+      state.chestActive=false;
+      if(state.chestTimeoutId){
+        clearTimeout(state.chestTimeoutId);
+        state.chestTimeoutId=null;
+      }
+      chestBox.classList.remove("opening");
+      chestSmoke.innerHTML="";
+    }
+
+    function spawnChestSmoke(){
+      chestSmoke.innerHTML="";
+      for(let i=0;i<10;i++){
+        const s=document.createElement("div");
+        s.className="smoke-dot";
+        const angle=(Math.random()*Math.PI)-Math.PI/2;
+        const dist=20+Math.random()*25;
+        const sx=Math.cos(angle)*dist;
+        const sy=-Math.abs(Math.sin(angle)*dist)-20;
+        s.style.setProperty("--sx",sx+"px");
+        s.style.setProperty("--sy",sy+"px");
+        s.style.left=(50+Math.random()*20-10)+"%";
+        s.style.bottom="0px";
+        chestSmoke.appendChild(s);
+      }
+    }
+
+    function openChest(type,data){
+      let text="Prizas!";
+      if(type==="stars"){
+        text="Gavai "+data+" ⭐!";
+        addStars(data);
+      }else if(type==="hearts"){
+        text="Gavai "+data+" širdeles!";
+        state.lives=Math.min(state.maxLives,state.lives+data);
+      }else if(type==="xp"){
+        text="Gavai "+data+" XP!";
+        state.xp+=data;
+      }else if(type==="mixed"){
+        text=data;
+      }
+
+      chestReward.textContent=text;
+      chestHint.textContent="Skrynia užsidarys iki 2 s automatiškai.";
+      updateHUD();
+
+      state.chestActive=true;
+      chestOverlay.style.display="flex";
+      log("🎁 Skrynia – žaidimas sustabdytas, prizas atidarytas.");
+      vibrate(60);
+
+      chestBox.classList.remove("opening");
+      void chestBox.offsetWidth;
+      chestBox.classList.add("opening");
+      spawnChestSmoke();
+
+      if(state.chestTimeoutId){
+        clearTimeout(state.chestTimeoutId);
+        state.chestTimeoutId=null;
+      }
+      state.chestTimeoutId=setTimeout(()=>{
+        if(state.chestActive){
+          closeChest();
+          log("Skrynia automatiškai užsidarė.");
+        }
+      },2000);
+    }
+
+    function grantBossBonus(){
+      const r=Math.random();
+      if(r<0.33){
+        openChest("hearts",2);
+        log("🎁 Bosas: chest – +2 širdelės!");
+      }else if(r<0.66){
+        openChest("stars",3);
+        log("🎁 Bosas: chest – +3 ⭐!");
+      }else{
+        let bonusXp=Math.round(180*vipMultiplierXP());
+        openChest("xp",bonusXp);
+        log("🎁 Bosas: chest – +XP!");
+      }
+    }
+
+    // kandidatai dangaus smūgiams (premijos + bosas)
+    function getSkyTargets(){
+      return state.balloons.filter(b=>
+        !b.popped &&
+        (["heart","chest","ice","slow","x2","turbo","boss"].includes(b.type))
+      );
+    }
+
+    function createLightningSprite(xCenter,kind){
+      const img=document.createElement("img");
+      if(kind==="cosmic"){
+        img.className="cosmic-sprite";
+        img.src="lightning_cosmic.png";
+      }else{
+        img.className="lightning-sprite";
+        const variant=1+Math.floor(Math.random()*3);
+        img.src="lightning"+variant+".png";
+      }
+      img.style.left=(xCenter-16)+"px";
+      img.style.top="-16px";
+      lightningLayer.appendChild(img);
+      setTimeout(()=>{
+        if(img.parentNode) img.parentNode.removeChild(img);
+      },260);
+    }
+
+    function strikeLightningOnBalloon(b){
+      if(!b || !b.el || b.popped)return;
+
+      const gaRect=gameArea.getBoundingClientRect();
+      const br=b.el.getBoundingClientRect();
+      const endX=(br.left-gaRect.left)+br.width/2;
+
+      createLightningSprite(endX,"normal");
+
+      gameArea.classList.add("lightning-hit","storm-intense");
+      setTimeout(()=>gameArea.classList.remove("lightning-hit","storm-intense"),200);
+
+      if(b.type==="boss"){
+        b.popped=true;
+        spawnFx(b,"boss");
+        if(b.el){
+          b.el.classList.add("pop-boss");
+          setTimeout(()=>removeBalloon(b),450);
+        }
+        log("⚡ Žaibas nutrenkė bosą – jis dingo be prizo.");
+        return;
+      }
+
+      b.popped=true;
+      spawnFx(b,"bad");
+      if(b.el){
+        b.el.classList.add("pop-bad");
+        setTimeout(()=>removeBalloon(b),260);
+      }
+      log("⚡ Žaibas nutrenkė bonusinį balioną – prizas dingo.");
+    }
+
+    function strikeCosmicOnBalloon(b){
+      if(!b || !b.el || b.popped)return;
+
+      const gaRect=gameArea.getBoundingClientRect();
+      const br=b.el.getBoundingClientRect();
+      const endX=(br.left-gaRect.left)+br.width/2;
+
+      createLightningSprite(endX,"cosmic");
+
+      gameArea.classList.add("cosmic-hit");
+      setTimeout(()=>gameArea.classList.remove("cosmic-hit"),220);
+
+      if(b.type==="boss"){
+        b.popped=true;
+        spawnFx(b,"boss");
+        if(b.el){
+          b.el.classList.add("pop-boss");
+          setTimeout(()=>removeBalloon(b),450);
+        }
+        log("🌠 Kosminis spindulys sunaikino bosą – be prizo.");
+        return;
+      }
+
+      b.popped=true;
+      spawnFx(b,"bad");
+      if(b.el){
+        b.el.classList.add("pop-bad");
+        setTimeout(()=>removeBalloon(b),260);
+      }
+      log("🌠 Kosminis spindulys sunaikino bonusinį balioną.");
+    }
+
+    // Gyvatės „kelias“ – paliktas, bet nebe naudojamas
+    function createSnakeBeam(startX,startY,endX,endY){
+      const gaRect=gameArea.getBoundingClientRect();
+      const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+      svg.setAttribute("viewBox","0 0 "+gaRect.width+" "+gaRect.height);
+      const path=document.createElementNS("http://www.w3.org/2000/svg","polyline");
+
+      const points=[];
+      const steps=7;
+      for(let i=0;i<=steps;i++){
+        const t=i/steps;
+        const x=startX+(endX-startX)*t;
+        const y=startY+(endY-startY)*t;
+        const intensity=1-Math.abs(t-0.5)*2;
+        const jitter=(i===0||i===steps)?0:(Math.random()-0.5)*25*intensity;
+        points.push([x+jitter,y]);
+      }
+      const ptsStr=points.map(p=>p[0]+","+p[1]).join(" ");
+      path.setAttribute("points",ptsStr);
+      path.classList.add("snake-path");
+      svg.appendChild(path);
+      lightningLayer.appendChild(svg);
+
+      setTimeout(()=>{if(svg.parentNode)svg.parentNode.removeChild(svg);},900);
+    }
+
+    function getLightningIntervalForLevel(lvl){
+      if(lvl<2)return Infinity;
+      if(lvl<6)return 9000;
+      if(lvl<11)return 8000;
+      if(lvl<16)return 7500;
+      if(lvl<21)return 7000;
+      return 6500;
+    }
+
+    // Miesto žaibai ir kosmoso spinduliai: nuo 2 lygio
+    function maybeSkyEvent(timestamp){
+      if(state.level<2)return;
+
+      // Kosmosas
+      if(state.world==="space" && state.weather==="stars"){
+        let baseInterval=getLightningIntervalForLevel(state.level)*1.1;
+        if(timestamp-state.lightningLast<baseInterval)return;
+        const candidates=getSkyTargets();
+        if(!candidates.length)return;
+        state.lightningLast=timestamp;
+        const b=candidates[Math.floor(Math.random()*candidates.length)];
+        strikeCosmicOnBalloon(b);
+        return;
+      }
+
+      // Miesto audra
+      if(state.world!=="city" || state.weather!=="storm")return;
+      let baseInterval=getLightningIntervalForLevel(state.level);
+      baseInterval=Math.round(baseInterval*0.9);
+      if(timestamp-state.lightningLast<baseInterval)return;
+      const candidates=getSkyTargets();
+      if(!candidates.length)return;
+      state.lightningLast=timestamp;
+      const b=candidates[Math.floor(Math.random()*candidates.length)];
+      strikeLightningOnBalloon(b);
+    }
+
+    function createBalloon(){
+      if(state.balloons.length>=state.maxBalloons)return;
+      const now=performance.now();
+      let specialChance=0.15;
+      if(state.level>5)specialChance=0.2;
+      if(state.level>10)specialChance=0.25;
+      if(isVipActive())specialChance+=0.1;
+
+      let type="normal";
+      if(state.specialActive<2 && Math.random()<specialChance){
+        const r=Math.random();
+        if(r<0.15)type="heart";
+        else if(r<0.30)type="chest";
+        else if(r<0.42)type="ice";
+        else if(r<0.57)type="slow";
+        else if(r<0.72)type="x2";
+        else if(r<0.87)type="turbo";
+        else if(r<0.96)type="bomb";
+        else{
+          if(state.bossesThisLevel<2){
+            type="boss";
+          }else{
+            type="bomb";
+          }
+        }
+      }
+
+      const color=COLORS[Math.floor(Math.random()*COLORS.length)];
+      const el=document.createElement("div");
+      el.className="balloon color-"+color;
+      if(type!=="normal"){
+        el.classList.add("type-"+type);
+        if(type==="heart"||type==="chest"||type==="ice"||type==="slow"||type==="x2"||type==="turbo"){
+          el.classList.add("good-target");
+        }
+        if(type==="bomb"){
+          el.classList.add("bad-special");
+        }
+        state.specialActive++;
+      }
+      if(color===state.targetColor && type==="normal"){
+        el.classList.add("target-main");
+      }
+      if(isVipActive()){
+        el.classList.add("vip-skin");
+      }
+
+      const lab=document.createElement("div");
+      lab.className="cb-label";
+      lab.textContent=COLOR_SYMBOL[color]||"●";
+      el.appendChild(lab);
+
+      const w=gameArea.clientWidth;
+      const x=Math.random()*(w-50)+5;
+      const y=gameArea.clientHeight+60;
+      el.style.left=x+"px";
+      el.style.top=y+"px";
+      const data={
+        el,type,color,x,y,
+        amp:10+Math.random()*20,
+        freq:0.001+Math.random()*0.0008,
+        baseX:x,
+        spawnTime:now,
+        speed:0.07+Math.random()*0.03,
+        popped:false,
+        bossHp:type==="boss"?12:0,
+        bossDeadline:type==="boss"?(now+6000):0
+      };
+      if(type==="boss"){
+        state.bossesThisLevel++;
+      }
+      el.addEventListener("click",(e)=>{
+        if(!state.running || state.paused || state.chestActive)return;
+        handleBalloonClick(data);
+        e.stopPropagation();
+      });
+      state.balloons.push(data);
+      gameArea.appendChild(el);
+    }
+
+    function handleBalloonClick(b){
+      if(b.popped)return;
+      const isTargetColor=(b.color===state.targetColor);
+      const now=performance.now();
+
+      if(b.type==="bomb"){
+        b.popped=true;
+        spawnFx(b,"bad");
+        b.el.classList.add("pop-bad");
+        state.bombsClicked++;
+        loseLife("paspaudei bombą");
+        resetStreak();
+        setTimeout(()=>removeBalloon(b),280);
+        return;
+      }
+
+      if(b.type==="boss"){
+        if(b.bossHp>0){
+          b.bossHp--;
+          b.el.style.transform="scale(1.08)";
+          setTimeout(()=>{if(b.el)b.el.style.transform="";},120);
+          if(b.bossHp<=0){
+            b.popped=true;
+            spawnFx(b,"boss");
+            b.el.classList.add("pop-boss");
+            const pts=300;
+            state.score+=pts;
+            let gainedXp=Math.round(100*vipMultiplierXP());
+            state.xp+=gainedXp;
+            state.lives=Math.min(state.maxLives,state.lives+1);
+            addStars(1);
+            log("👑 Nugalėjai bosą! +"+pts+" taškų, +1 širdis, +1 ⭐");
+
+            if(now<=b.bossDeadline){
+              grantBossBonus();
+            }else{
+              log("Nespėjai laiku – be papildomo prizo.");
+            }
+
+            state.streak++;
+            awardStreakStars();
+            state.levelProgress+=5;
+            savePersistent();
+
+            if(state.levelProgress>=state.levelTarget){
+              nextLevel();
+            }else{
+              updateHUD();
+            }
+
+            setTimeout(()=>removeBalloon(b),450);
+          }
+        }
+        return;
+      }
+
+      if(b.type==="heart"){
+        b.popped=true;
+        spawnFx(b,"special");
+        b.el.classList.add("pop-special");
+        state.lives=Math.min(state.maxLives,state.lives+1);
+        log("+1 širdis ❤️");
+        state.streak++;
+        awardStreakStars();
+        updateHUD();
+        setTimeout(()=>removeBalloon(b),320);
+        return;
+      }
+      if(b.type==="chest"){
+        b.popped=true;
+        spawnFx(b,"special");
+        b.el.classList.add("pop-special");
+        openChest("mixed","Mini chest’as! +1 širdis ir +1 ⭐");
+        state.lives=Math.min(state.maxLives,state.lives+1);
+        addStars(1);
+        let gainedXp=Math.round(40*vipMultiplierXP());
+        state.xp+=gainedXp;
+
+        if(Math.random()<0.5){
+          state.levelProgress++;
+          log("🎁 Dovanų balionas pridėjo truputį lygio progreso.");
+        }
+
+        log("🎁 Dovanų balionas!");
+        state.streak++;
+        awardStreakStars();
+        savePersistent();
+
+        if(state.levelProgress>=state.levelTarget){
+          nextLevel();
+        }else{
+          updateHUD();
+        }
+
+        setTimeout(()=>removeBalloon(b),320);
+        return;
+      }
+      if(b.type==="ice"){
+        b.popped=true;
+        spawnFx(b,"special");
+        b.el.classList.add("pop-special");
+        state.iceUntil=now+3000;
+        log("❄ Visi balionai sustingo trumpam.");
+        state.streak++;
+        awardStreakStars();
+        updateHUD();
+        setTimeout(()=>removeBalloon(b),320);
+        return;
+      }
+      if(b.type==="slow"){
+        b.popped=true;
+        spawnFx(b,"special");
+        b.el.classList.add("pop-special");
+        state.slowUntil=now+5000;
+        log("🐌 Balionai sulėtėjo.");
+        state.streak++;
+        awardStreakStars();
+        updateHUD();
+        setTimeout(()=>removeBalloon(b),320);
+        return;
+      }
+      if(b.type==="x2"){
+        b.popped=true;
+        spawnFx(b,"special");
+        b.el.classList.add("pop-special");
+        state.x2Active=true;
+        state.x2Until=now+10000;
+        log("✨ 10s taškai ×2.");
+        state.streak++;
+        awardStreakStars();
+        updateHUD();
+        setTimeout(()=>removeBalloon(b),320);
+        return;
+      }
+      if(b.type==="turbo"){
+        b.popped=true;
+        spawnFx(b,"special");
+        b.el.classList.add("pop-special");
+        state.turboUntil=now+5000;
+        log("⚡ Žaibo balionas! 5s viskas žymiai greičiau – rizika tavo.");
+        state.streak++;
+        awardStreakStars();
+        updateHUD();
+        setTimeout(()=>removeBalloon(b),320);
+        return;
+      }
+
+      if(isTargetColor){
+        applyGoodHit(b,"player");
+      }else{
+        b.popped=true;
+        spawnFx(b,"bad");
+        b.el.classList.add("pop-bad");
+        loseLife("neteisinga spalva");
+        resetStreak();
+        setTimeout(()=>removeBalloon(b),280);
+      }
+    }
+
+    function applyGoodHit(b,source){
+      if(b.popped)return;
+      b.popped=true;
+      spawnFx(b,"good");
+      if(b.el)b.el.classList.add("pop-good");
+      let basePts=10;
+      const tNow=performance.now();
+      if(state.turboUntil>tNow)basePts=Math.round(basePts*1.5);
+      if(state.x2Active && state.x2Until>tNow)basePts*=2;
+      state.score+=basePts;
+      let gainedXp=Math.round(5*vipMultiplierXP());
+      state.xp+=gainedXp;
+      state.levelProgress++;
+      state.streak++;
+      awardStreakStars();
+
+      if(source==="helper"){
+        log("🐾 Pagalbinis augintinis panaikino taikinio balioną.");
+      }
+
+      if(state.levelProgress>=state.levelTarget){
+        updateHUD();
+        nextLevel();
+      }else{
+        updateHUD();
+      }
+      setTimeout(()=>removeBalloon(b),280);
+    }
+
+    function removeBalloon(b){
+      if(!b.el)return;
+      if(b.el.parentNode)b.el.parentNode.removeChild(b.el);
+      const idx=state.balloons.indexOf(b);
+      if(idx>=0)state.balloons.splice(idx,1);
+      if(b.type!=="normal")state.specialActive=Math.max(0,state.specialActive-1);
+    }
+
+    function updateBalloons(dt){
+      const now=performance.now();
+      const slowFactor=(state.slowUntil>now)?0.5:1;
+      const iceFactor=(state.iceUntil>now)?0:1;
+      const turboFactor=(state.turboUntil>now)?1.8:1;
+      const speedMult=slowFactor*iceFactor*turboFactor;
+      for(const b of [...state.balloons]){
+        if(b.popped)continue;
+        let v=b.speed*dt*speedMult;
+        b.y-=v;
+        const t=(now-b.spawnTime);
+        const offset=Math.sin(t*b.freq)*b.amp;
+        b.el.style.top=b.y+"px";
+        b.el.style.left=(b.baseX+offset)+"px";
+        if(b.y<-70){
+          if(b.type==="boss"){
+            loseLife("praleidai bosą");
+            resetStreak();
+          }else if(b.type==="bomb"){
+          }else if(b.type==="heart"||b.type==="chest"||b.type==="ice"||b.type==="slow"||b.type==="x2"||b.type==="turbo"){
+          }else{
+            if(b.color===state.targetColor){
+              state.targetMissed++;
+              loseLife("praleidai taikinio spalvos balioną");
+              resetStreak();
+            }
+          }
+          b.popped=true;
+          removeBalloon(b);
+        }
+      }
+    }
+
+    // Augintinio animacija: nusiteleportuoja ant baliono ir grįžta
+    function animateHelperToBalloon(b){
+      if(!state.helperOwned || !helperBody || state.helperBusy)return;
+      if(!b || !b.el || b.popped)return;
+
+      const helperRect=helperBody.getBoundingClientRect();
+      const br=b.el.getBoundingClientRect();
+
+      const offsetX=(br.left+br.width/2)-(helperRect.left+helperRect.width/2);
+      const offsetY=(br.top+br.height/2)-(helperRect.top+helperRect.height/2);
+
+      state.helperBusy=true;
+
+      if(helperFace){
+        helperFace.classList.add("mouth-open");
+      }
+
+      helperBody.classList.add("helper-teleport-out");
+      setTimeout(()=>{
+        helperBody.classList.remove("helper-teleport-out");
+
+        helperBody.style.transition="transform 0s";
+        helperBody.style.transform="translate("+offsetX+"px,"+offsetY+"px)";
+
+        helperBody.classList.add("helper-teleport-in");
+        setTimeout(()=>{
+          helperBody.classList.remove("helper-teleport-in");
+
+          if(helperFace)helperFace.classList.add("helper-bite");
+          applyGoodHit(b,"helper");
+
+          setTimeout(()=>{
+            if(helperFace){
+              helperFace.classList.remove("helper-bite");
+              helperFace.classList.remove("mouth-open");
+            }
+            helperBody.style.transition="";
+            helperBody.style.transform="translate(0,0)";
+            state.helperBusy=false;
+          },220);
+        },160);
+      },180);
+    }
+
+    // HELPER – pagalbininko logika
+    function maybeHelperAssist(timestamp){
+      if(!state.helperOwned || !state.running || state.paused || state.chestActive)return;
+      const interval=9000;
+      if(timestamp-state.helperLastAssist<interval)return;
+
+      const gaRect=gameArea.getBoundingClientRect();
+      const midTop=gaRect.height*0.25;
+      const midBottom=gaRect.height*0.75;
+
+      const candidate=state.balloons.find(b=>{
+        if(b.popped)return false;
+        if(b.type!=="normal")return false;
+        if(b.color!==state.targetColor)return false;
+        const yLocal=b.y;
+        return yLocal<midBottom && yLocal>midTop;
+      });
+
+      if(!candidate)return;
+      state.helperLastAssist=timestamp;
+      animateHelperToBalloon(candidate);
+    }
+
+    function initMissions(){
+      state.missions=[
+        {id:"color-blue",title:"Susprogdink 30 mėlynų balionų",goal:30,progress:0,rewardStars:2},
+        {id:"reach-lvl5",title:"Pasiek 5 lygį nepraradęs daugiau nei 2 širdžių",goal:1,progress:0,rewardStars:2},
+        {id:"boss-1",title:"Numušk bent 1 bosą",goal:1,progress:0,rewardStars:2}
+      ];
+    }
+    function openMissionsPanel(){
+      missionsList.innerHTML="";
+      state.missions.forEach(m=>{
+        const div=document.createElement("div");
+        div.className="mission";
+        const left=document.createElement("div");
+        left.className="mission-title";
+        left.textContent=m.title;
+        const right=document.createElement("div");
+        right.className="mission-progress";
+        right.textContent=m.progress+"/"+m.goal+" (+"+m.rewardStars+"⭐)";
+        div.appendChild(left);
+        div.appendChild(right);
+        missionsList.appendChild(div);
+      });
+      missionsPanel.style.display="flex";
+    }
+
+    function updateShopHeader(){
+      shopStars.textContent=state.starsWallet;
+      shopStarsLt.textContent=state.starsLifetime;
+      const vipAct=isVipActive();
+      if(vipAct){
+        const left=Math.max(0,Math.floor((state.vipUntil-Date.now())/86400000));
+        shopVipStatus.textContent="AKTYVUS (~"+left+" d.)";
+      }else shopVipStatus.textContent="neaktyvus";
+    }
+    function renderShop(tab){
+      updateShopHeader();
+      shopContent.innerHTML="";
+      if(tab==="vip"){
+        const vipInfo=[
+          {name:"VIP 7 d.",price:"0,39 €",tier:1,days:7},
+          {name:"VIP 30 d.",price:"0,99 €",tier:2,days:30},
+          {name:"VIP 90 d.",price:"2,49 €",tier:3,days:90}
+        ];
+        vipInfo.forEach(v=>{
+          const item=document.createElement("div");
+          item.className="shop-item";
+          const main=document.createElement("div");
+          main.className="shop-item-main";
+          const t=document.createElement("div");
+          t.className="shop-item-title";
+          t.textContent=v.name;
+          const d=document.createElement("div");
+          d.className="shop-item-desc";
+          d.textContent="VIP privilegijos "+v.days+" dienų. DEMO – realiame žaidime čia būtų Google Play apmokėjimas.";
+          main.appendChild(t);main.appendChild(d);
+          const right=document.createElement("div");
+          const pr=document.createElement("div");
+          pr.className="shop-item-price";pr.textContent=v.price;
+          const btn=document.createElement("button");
+          btn.className="btn-small";
+          btn.textContent="Pirkti (demo)";
+          btn.onclick=()=>{
+            const now=Date.now();
+            state.vipTier=v.tier;
+            const extraMs=v.days*86400000;
+            if(isVipActive()){
+              state.vipUntil+=extraMs;
+            }else{
+              state.vipUntil=now+extraMs;
+            }
+            log("VIP aktyvuotas DEMO režimu: "+v.name);
+            savePersistent();
+            updateHUD();
+            updateShopHeader();
+          };
+          right.appendChild(pr);right.appendChild(btn);
+          item.appendChild(main);item.appendChild(right);
+          shopContent.appendChild(item);
+        });
+      }else if(tab==="stars"){
+        const packs=[
+          {name:"Mažas ⭐ paketas",desc:"+20 žvaigždučių į piniginę (demo)",price:"0,99 €",amount:20},
+          {name:"Vidutinis ⭐ paketas",desc:"+70 žvaigždučių (demo)",price:"2,99 €",amount:70},
+          {name:"Didelis ⭐ paketas",desc:"+150 žvaigždučių (demo)",price:"4,99 €",amount:150}
+        ];
+        packs.forEach(p=>{
+          const item=document.createElement("div");
+          item.className="shop-item";
+          const main=document.createElement("div");
+          main.className="shop-item-main";
+          const t=document.createElement("div");
+          t.className="shop-item-title";t.textContent=p.name;
+          const d=document.createElement("div");
+          d.className="shop-item-desc";d.textContent=p.desc;
+          main.appendChild(t);main.appendChild(d);
+          const right=document.createElement("div");
+          const pr=document.createElement("div");
+          pr.className="shop-item-price";pr.textContent=p.price;
+          const btn=document.createElement("button");
+          btn.className="btn-small";btn.textContent="Pirkti (demo)";
+          btn.onclick=()=>{
+            addStars(p.amount);
+            log("Gavai "+p.amount+" ⭐ DEMO režimu.");
+          };
+          right.appendChild(pr);right.appendChild(btn);
+          item.appendChild(main);item.appendChild(right);
+          shopContent.appendChild(item);
+        });
+      }else if(tab==="upgrades"){
+        const upgrades=[
+          {id:"heart1",name:"+1 MAX širdis",cost:60,desc:"Brangus, bet vertingas. Veikia bazėje (VIP dar prideda +1)."},
+          {id:"xp1",name:"+5% XP bonusas",cost:40,desc:"Kaupk XP greičiau (DEMO tekstinis aprašas)."},
+          {id:"x2time",name:"+1s ×2 efektui",cost:35,desc:"Šiek tiek ilgesnis ×2 laikas (DEMO aprašas)."},
+          {id:"helper-dog",name:"Šuniukas pagalbininkas",cost:80,desc:"Mažas šuniukas apačioje dešinėje, kuris kartais nusiteleportuoja ant taikinio baliono ir jį susprogdina."},
+          {id:"helper-cat",name:"Kačiukas pagalbininkas",cost:80,desc:"Maža katytė apačioje dešinėje, kuri kartais nusiteleportuoja ant taikinio baliono ir jį susprogdina."}
+        ];
+        upgrades.forEach(u=>{
+          const item=document.createElement("div");
+          item.className="shop-item";
+          const main=document.createElement("div");
+          main.className="shop-item-main";
+          const t=document.createElement("div");
+          t.className="shop-item-title";t.textContent=u.name;
+          const d=document.createElement("div");
+          d.className="shop-item-desc";d.textContent="Kaina: "+u.cost+" ⭐. "+u.desc;
+          main.appendChild(t);main.appendChild(d);
+          const right=document.createElement("div");
+          const btn=document.createElement("button");
+          btn.className="btn-small";
+          btn.textContent="Pirkti";
+          btn.onclick=()=>{
+            if(state.starsWallet<u.cost){log("Trūksta ⭐ šiam patobulinimui.");return;}
+
+            if(u.id==="helper-dog" || u.id==="helper-cat"){
+              const pet=u.id==="helper-dog"?"dog":"cat";
+              if(state.helperOwned && state.helperPet===pet){
+                log("Šis pagalbininkas jau aktyvus.");
+                return;
+              }
+              state.starsWallet-=u.cost;
+              state.helperOwned=true;
+              state.helperPet=pet;
+              updateHelperVisibility();
+              log("Įsigijai: "+u.name+". Jis kartais nusiteleportuos ant taikinio baliono ir jį susprogdins.");
+            }else{
+              state.starsWallet-=u.cost;
+              log("Nupirkai: "+u.name+" (demo).");
+            }
+            savePersistent();
+            updateHUD();
+            updateShopHeader();
+          };
+          right.appendChild(btn);
+          item.appendChild(main);item.appendChild(right);
+          shopContent.appendChild(item);
+        });
+      }else if(tab==="skins"){
+        const skins=[
+          {id:"candy",name:"Candy skin",cost:50,desc:"Pasteliniai saldūs balionai (kosmetika)."},
+          {id:"cosmic",name:"Cosmic skin",cost:100,desc:"Kosminiai balionai su žvaigždėmis."},
+          {id:"crystal",name:"Crystal skin",cost:150,desc:"Pusiau skaidrūs kristaliniai balionai."}
+        ];
+        skins.forEach(s=>{
+          const item=document.createElement("div");
+          item.className="shop-item";
+          const main=document.createElement("div");
+          main.className="shop-item-main";
+          const t=document.createElement("div");
+          t.className="shop-item-title";t.textContent=s.name;
+          const d=document.createElement("div");
+          d.className="shop-item-desc";d.textContent="Kaina: "+s.cost+" ⭐. DEMO – logika tik žaidime.";
+          main.appendChild(t);main.appendChild(d);
+          const right=document.createElement("div");
+          const btn=document.createElement("button");
+          btn.className="btn-small";btn.textContent="Pirkti";
+          btn.onclick =()=>{
+            if(state.starsWallet<s.cost){log("Trūksta ⭐ skinui.");return;}
+            state.starsWallet-=s.cost;
+            log("Nupirkai skin: "+s.name+" (demo).");
+            savePersistent();
+            updateHUD();
+            updateShopHeader();
+          };
+          right.appendChild(btn);
+          item.appendChild(main);item.appendChild(right);
+          shopContent.appendChild(item);
+        });
+      }
+    }
+
+    function startPause(){
+      if(!state.running)return;
+      if(state.paused || state.chestActive)return;
+      const nowMs=Date.now();
+      if(state.pausesUsedThisLevel>=1){
+        log("Šiame lygyje pauzė jau panaudota.");
+        return;
+      }
+      if(nowMs<state.pauseCooldownUntil){
+        const sec=Math.ceil((state.pauseCooldownUntil-nowMs)/1000);
+        log("Pauzę galima naudoti po "+sec+" s.");
+        return;
+      }
+      state.paused=true;
+      state.pauseStart=performance.now();
+      state.pausesUsedThisLevel++;
+      pauseOverlay.style.display="flex";
+    }
+
+    function resumeFromPause(){
+      if(!state.paused)return;
+      pauseOverlay.style.display="none";
+      const now=performance.now();
+      const delta=now-state.pauseStart;
+
+      if(state.x2Active && state.x2Until>0)state.x2Until+=delta;
+      if(state.slowUntil>0)state.slowUntil+=delta;
+      if(state.iceUntil>0)state.iceUntil+=delta;
+      if(state.turboUntil>0)state.turboUntil+=delta;
+      state.balloons.forEach(b=>{
+        if(b.type==="boss" && b.bossDeadline>0)b.bossDeadline+=delta;
+      });
+
+      state.paused=false;
+      state.pauseCooldownUntil=Date.now()+30000;
+      if(state.pauseTimerId){
+        clearInterval(state.pauseTimerId);
+        state.pauseTimerId=null;
+      }
+      state.pauseTimerId=setInterval(()=>{
+        const nowMs=Date.now();
+        if(nowMs>=state.pauseCooldownUntil){
+          clearInterval(state.pauseTimerId);
+          state.pauseTimerId=null;
+          btnPause.textContent="Pauzė";
+          btnPause.disabled=false;
+        }else{
+          const sec=Math.ceil((state.pauseCooldownUntil-nowMs)/1000);
+          btnPause.textContent="Pauzė ("+sec+"s)";
+          btnPause.disabled=true;
+        }
+      },500);
+    }
+
+    function gameLoop(timestamp){
+      if(!state.running)return;
+      if(state.chestActive){
+        state.lastFrameTime=timestamp;
+        requestAnimationFrame(gameLoop);
+        return;
+      }
+      if(state.paused){
+        state.lastFrameTime=timestamp;
+        requestAnimationFrame(gameLoop);
+        return;
+      }
+      if(!state.lastFrameTime)state.lastFrameTime=timestamp;
+      const dt=timestamp-state.lastFrameTime;
+      state.lastFrameTime=timestamp;
+      updateBalloons(dt);
+      if(timestamp-state.lastSpawnTime>state.spawnInterval){
+        createBalloon();
+        state.lastSpawnTime=timestamp;
+      }
+      const now=performance.now();
+      if(state.x2Active && now>state.x2Until){
+        state.x2Active=false;log("×2 laikas baigėsi.");
+      }
+      if(state.slowUntil && now>state.slowUntil){
+        state.slowUntil=0;log("Sulėtinimas baigėsi.");
+      }
+      if(state.iceUntil && now>state.iceUntil){
+        state.iceUntil=0;log("Ledo efektas baigėsi.");
+      }
+      if(state.turboUntil && now>state.turboUntil){
+        state.turboUntil=0;log("Turbo efektas baigėsi.");
+      }
+
+      maybeSkyEvent(timestamp);
+      maybeHelperAssist(timestamp);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function toggleMenu(open){
+      const isOpen = typeof open==="boolean" ? open : !bottomBar.classList.contains("open");
+      if(isOpen){
+        bottomBar.classList.add("open");
+        fabMenu.textContent="✕";
+      }else{
+        bottomBar.classList.remove("open");
+        fabMenu.textContent="☰";
+      }
+    }
+
+    fabMenu.addEventListener("click",()=>toggleMenu());
+    bottomBarClose.addEventListener("click",()=>toggleMenu(false));
+
+    btnShop.addEventListener("click",()=>{
+      toggleMenu(false);
+      updateShopHeader();
+      shopPanel.style.display="flex";
+      document.querySelectorAll(".shop-tab").forEach(t=>t.classList.remove("active"));
+      document.querySelector('.shop-tab[data-tab="vip"]').classList.add("active");
+      renderShop("vip");
+    });
+    btnCloseShop.addEventListener("click",()=>{shopPanel.style.display="none";});
+    shopPanel.addEventListener("click",(e)=>{if(e.target===shopPanel)shopPanel.style.display="none";});
+    shopTabs.forEach(tab=>{
+      tab.addEventListener("click",()=>{
+        shopTabs.forEach(t=>t.classList.remove("active"));
+        tab.classList.add("active");
+        renderShop(tab.dataset.tab);
+      });
+    });
+
+    btnDaily.addEventListener("click",()=>{
+      toggleMenu(false);
+      log("🎁 Daily Spin (demo) – čia vėliau bus laimės ratas su prizais.");
+    });
+    btnTop.addEventListener("click",()=>{
+      toggleMenu(false);
+      log("🏆 Topai (demo) – čia vėliau bus turnyrinė lentelė.");
+    });
+
+    btnStart.addEventListener("click",()=>{
+      toggleMenu(false);
+      if(state.running)return;
+      state.running=true;
+      state.level=1;
+      resetGame();
+      btnStart.style.display="none";
+      btnRestart.style.display="block";
+      gameOverOverlay.style.display="none";
+      requestAnimationFrame(gameLoop);
+    });
+    btnRestart.addEventListener("click",()=>{
+      toggleMenu(false);
+      state.level=1;
+      state.running=true;
+      resetGame();
+      gameOverOverlay.style.display="none";
+      requestAnimationFrame(gameLoop);
+    });
+    btnPause.addEventListener("click",()=>{
+      toggleMenu(false);
+      startPause();
+    });
+    btnResume.addEventListener("click",()=>{resumeFromPause();});
+
+    btnSettings.addEventListener("click",()=>{
+      toggleMenu(false);
+      settingsPanel.style.display="flex";
+      if(state.kidsMode)tglKids.classList.add("on");else tglKids.classList.remove("on");
+      if(state.sound)tglSound.classList.add("on");else tglSound.classList.remove("on");
+      if(state.vibrate)tglVibrate.classList.add("on");else tglVibrate.classList.remove("on");
+      if(state.colorblindMode)tglCb.classList.add("on");else tglCb.classList.remove("on");
+      inputTestLevel.value=state.level;
+    });
+    btnCloseSettings.addEventListener("click",()=>{settingsPanel.style.display="none";});
+    settingsPanel.addEventListener("click",(e)=>{if(e.target===settingsPanel)settingsPanel.style.display="none";});
+
+    btnApplyTestLevel.addEventListener("click",()=>{
+      let lvl=parseInt(inputTestLevel.value,10);
+      if(isNaN(lvl)||lvl<1)lvl=1;
+      if(lvl>99)lvl=99;
+      state.level=lvl;
+      state.running=true;
+      resetGame();
+      gameOverOverlay.style.display="none";
+      btnStart.style.display="none";
+      btnRestart.style.display="block";
+      toggleMenu(false);
+      settingsPanel.style.display="none";
+      log("⚙ Test lygis: peršokta į "+lvl+" lygį (laikinas debug).");
+      requestAnimationFrame(gameLoop);
+    });
+
+    tglKids.addEventListener("click",()=>{
+      state.kidsMode=!state.kidsMode;
+      if(state.kidsMode)tglKids.classList.add("on");else tglKids.classList.remove("on");
+      log("Vaikų režimas: "+(state.kidsMode?"Įjungtas":"Išjungtas")+" (poveikis naujam žaidimui).");
+      savePersistent();
+    });
+    tglSound.addEventListener("click",()=>{
+      state.sound=!state.sound;
+      if(state.sound)tglSound.classList.add("on");else tglSound.classList.remove("on");
+    });
+    tglVibrate.addEventListener("click",()=>{
+      state.vibrate=!state.vibrate;
+      if(state.vibrate)tglVibrate.classList.add("on");else tglVibrate.classList.remove("on");
+    });
+    tglCb.addEventListener("click",()=>{
+      state.colorblindMode=!state.colorblindMode;
+      if(state.colorblindMode){tglCb.classList.add("on");body.classList.add("colorblind");}
+      else{tglCb.classList.remove("on");body.classList.remove("colorblind");}
+      savePersistent();
+    });
+
+    btnCloseMissions.addEventListener("click",()=>{missionsPanel.style.display="none";});
+    missionsPanel.addEventListener("click",(e)=>{if(e.target===missionsPanel)missionsPanel.style.display="none";});
+
+    btnGoRestart.addEventListener("click",()=>{
+      state.level=1;
+      state.running=true;
+      resetGame();
+      gameOverOverlay.style.display="none";
+      requestAnimationFrame(gameLoop);
+    });
+
+    btnChestOk.addEventListener("click",()=>{closeChest();});
+
+    function adjustGameRootHeight(){
+      const root=document.getElementById("game-root");
+      const vh=window.innerHeight;
+      root.style.height=(vh-12)+"px";
+    }
+    window.addEventListener("resize",adjustGameRootHeight);
+    window.addEventListener("orientationchange",adjustGameRootHeight);
+
+    loadPersistent();
+    adjustGameRootHeight();
+    setThemeByLevel();
+    applyWorldTheme();
+    recalcDifficulty();
+    state.levelTarget=calcLevelTarget(state.level);
+    let baseLives=state.kidsMode?5:3;
+    if(isVipActive())baseLives+=1;
+    state.maxLives=baseLives;
+    state.lives=baseLives;
+    initMissions();
+    updateHUD();
+    log("Pasiruošk žaidimui. Paspausk Start meniu apačioje.");
+  </script>
+</body>
