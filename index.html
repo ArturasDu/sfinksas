@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <title>Balloon Rush Pro</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="main-menu-screen">
+    <div class="menu-bg"></div>
+    <div class="menu-panel-main">
+      <h1 class="game-title">Balloon Rush Pro</h1>
+      <div class="menu-subtitle">Pasiruošk sprogdinti balionus ir tobulinti įgūdžius!</div>
+      <div class="menu-buttons">
+        <button id="mm-play" class="btn primary">Žaisti</button>
+        <button id="mm-skills" class="btn">Skill Tree</button>
+        <button id="mm-shop" class="btn">Parduotuvė</button>
+        <button id="mm-settings" class="btn">Nustatymai</button>
+      </div>
+      <div class="menu-footer">
+        <span>⭐ Žvaigždės: <span id="menu-stars">0</span></span>
+        <span>•</span>
+        <span>Points: <span id="menu-points">0</span></span>
+        <span>•</span>
+        <span>Geriausias lygis: <span id="menu-best-level">1</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-root" style="display:none;">
+
+
+  <!-- LOADING -->
+  <div id="loading-overlay">
+    <div class="loading-inner">
+      <h1>Balloon Rush Pro</h1>
+      <p style="font-size:0.85rem;opacity:.8;margin-bottom:6px;">Kraunamas žaidimas...</p>
+      <div id="loading-bar">
+        <div id="loading-bar-fill"></div>
+      </div>
+      <div id="loading-percent">0%</div>
+    </div>
+  </div>
+
+  <!-- VIRŠUS -->
+  <div id="top-bar">
+    <div id="logo">BALLOON RUSH PRO</div>
+    <div id="stats">
+      <div class="pill">⭐ <span id="stat-stars">0</span></div>
+      <div class="pill">XP <span id="stat-xp">0</span></div>
+      <div class="pill">SP <span id="stat-skill">0</span></div>
+      <div class="pill">MAX LVL <span id="stat-best-level">1</span></div>
+    </div>
+  </div>
+
+  <!-- ŽAIDIMO LAUKAS -->
+  <div id="game-area" class="world-default">
+
+    <div id="hud-top">
+      <div id="lives"></div>
+      <div id="target">
+        🎯 Taikinys:
+        <div id="target-dot"></div>
+      </div>
+      <div id="level-label">1 lygis</div>
+    </div>
+
+    <!-- COMBO DISPLAY -->
+    <div id="combo-display">0 COMBO</div>
+
+    <!-- FEVER OVERLAY -->
+    <div id="fever-overlay"></div>
+
+    <!-- ULT MYGTUKAI -->
+    <div id="ult-buttons">
+      <button id="ult-bomb" class="ult-btn" title="Super Bomba">💥</button>
+      <button id="ult-slow" class="ult-btn" title="Lėtas Laikas">⏰</button>
+      <button id="ult-target" class="ult-btn" title="Tikslus Taikinys">🎯</button>
+    </div>
+
+    <!-- INFO JUOSTA -->
+    <div id="log-bar">
+      <span id="log-text">Spausk taikinio spalvos balionus.</span>
+    </div>
+
+    <!-- PROGRESO JUOSTA -->
+    <div id="progress-bar-wrap">
+      <div id="progress-fill"></div>
+    </div>
+
+    <!-- ŽAIDĖJO HP -->
+    <div id="player-hp-wrap">
+      <div id="player-hp-label">HP</div>
+      <div id="player-hp-track">
+        <div id="player-hp-fill"></div>
+      </div>
+      <div id="player-hp-value">10/10</div>
+    </div>
+
+    <!-- ŽAIDĖJAS (apačioje) -->
+    <div id="player"></div>
+
+    <!-- AUGINTINIS -->
+    <div id="helper">
+      <div id="helper-body">🐾</div>
+    </div>
+
+    <!-- BOSO UI -->
+    <div id="boss-overlay">
+      <div id="boss-panel">
+        <div id="boss-name">❄ Ledo bosas</div>
+        <div id="boss-hp-track">
+          <div id="boss-hp-fill"></div>
+        </div>
+        <div id="boss-hp-value">100/100</div>
+        <div id="boss-tip">Sprogdink jo balionus. Kas 10 – silpna vieta.</div>
+      </div>
+      <div id="boss-entity" class="stage1">
+        <div id="boss-hitbox"></div>
+      </div>
+    </div>
+
+    <!-- ŽALOS BLYKSNIS -->
+    <div id="damage-flash"></div>
+
+  </div>
+
+  <!-- PAUSE MYGTUKAS -->
+  <button id="pause-btn" class="menu-dots">⏸️</button>
+
+  <!-- START EKRANAS -->
+  <div id="start-overlay" class="overlay">
+    <div class="start-content">
+      <h1 id="start-title">Balloon Rush Pro</h1>
+      <p id="start-tip">Patarimas kraunamas...</p>
+    </div>
+    <button class="btn" id="btn-start">Pradėti</button>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="game-over-overlay" class="overlay" style="display:none;">
+    <h2>Žaidimas baigtas</h2>
+    <p>Nueitas lygis: <span id="go-level">1</span></p>
+    <p>Surinkta žvaigždučių: <span id="go-stars">0</span></p>
+    <p>Geriausias lygis: <span id="go-best-level">1</span></p>
+    <p>Didžiausias combo: <span id="go-max-combo">0</span></p>
+    <div class="go-buttons">
+      <button class="btn" id="btn-go-menu">Grįžti į meniu</button>
+      <button class="btn" id="btn-restart">Žaisti iš naujo</button>
+    </div>
+  </div>
+
+  <!-- PAUSE MENIU -->
+  <div id="pause-overlay" class="overlay" style="display:none;">
+    <h2>Pauzė</h2>
+    <button class="btn" id="btn-resume">Tęsti</button>
+    <button class="btn" id="btn-main-menu">Pagrindinis meniu</button>
+    <div class="pause-settings">
+      <label><input type="checkbox" id="sound-toggle" checked> Garso efektai</label>
+      <label><input type="checkbox" id="music-toggle" checked> Muzika</label>
+    </div>
+  </div>
+
+  <!-- 3 TAŠKAI -->
+  <button id="btn-menu" class="menu-dots">⋮</button>
+
+  <!-- PAGRINDINIS MENIU -->
+  <div id="main-menu" class="bottom-menu">
+    <div class="bottom-menu-header">
+      <span>Pagrindinis meniu</span>
+      <button id="main-menu-close">✕</button>
+    </div>
+    <div class="bottom-menu-body">
+      <button data-action="play">Žaisti</button>
+      <button data-action="skills">Skill Tree</button>
+      <button data-action="pets">Augintiniai</button>
+      <button data-action="skins">Skin'ai</button>
+      <button data-action="upgrades">Pagerinimai</button>
+      <button data-action="achievements">Pasiekimai</button>
+      <button data-action="daily">Dienos užduotys</button>
+      <button data-action="quests">Misijos</button>
+      <button data-action="stats">Statistika</button>
+      <button data-action="leaderboard">Lentelė</button>
+      <button data-action="titles">Titulai</button>
+      <button data-action="guild">Gildija</button>
+      <button data-action="multiplayer">Multiplayer (beta)</button>
+      <button data-action="tutorial">Tutorial</button>
+    </div>
+  </div>
+
+  <!-- ANTRINĖ PANELĖ -->
+  <div id="menu-panel" class="menu-panel" style="display:none;">
+    <div class="menu-panel-header">
+      <span id="menu-panel-title"></span>
+      <button id="menu-panel-close">✕</button>
+    </div>
+    <div id="menu-panel-content"></div>
+  </div>
+
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
